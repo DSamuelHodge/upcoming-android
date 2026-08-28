@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.example.core.database.UpcomingDatabase
 import com.example.core.engine.NotificationAndReminderManager
+import com.example.core.network.UpcomingApiClient
 import com.example.core.repository.UpcomingRepository
 import com.example.navigation.UpcomingNavHost
 import com.example.ui.theme.UpcomingTheme
@@ -23,7 +24,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val db = UpcomingDatabase.getInstance(applicationContext)
-        repository = UpcomingRepository(db, applicationContext)
+        repository = UpcomingRepository(
+            database = db,
+            context = applicationContext,
+            api = UpcomingApiClient.create()
+        )
 
         NotificationAndReminderManager.setupChannels(applicationContext)
 
