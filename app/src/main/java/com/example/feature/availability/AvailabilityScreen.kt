@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.core.designsystem.*
 import com.example.ui.theme.*
@@ -93,17 +92,17 @@ fun AvailabilityScreen(
                         Column {
                             Text(
                                 text = "Working Timezone",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = uiState.schedule?.timezone ?: "America/New_York",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = UpcomingTokens.BrandBlue
+                                color = UpcomingTokens.BrandPrimary
                             )
                         }
                         TextButton(onClick = { showTimezonePicker = true }) {
-                            Text("Change", color = UpcomingTokens.BrandBlue)
+                            Text("Change", color = UpcomingTokens.BrandPrimary)
                         }
                     }
                 }
@@ -118,7 +117,7 @@ fun AvailabilityScreen(
                 ) {
                     Text(
                         text = "Weekly Working Hours",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -144,12 +143,12 @@ fun AvailabilityScreen(
                                 onCheckedChange = { isChecked -> viewModel.toggleDay(day.dayOfWeek, isChecked) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = UpcomingTokens.BrandBlue
+                                    checkedTrackColor = UpcomingTokens.BrandPrimary
                                 )
                             )
                             Text(
                                 text = day.dayName,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleSmall,
                                 color = if (day.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -191,7 +190,7 @@ fun AvailabilityScreen(
                     Column {
                         Text(
                             text = "Date-Specific Overrides",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
@@ -239,13 +238,13 @@ fun AvailabilityScreen(
                                 Icon(
                                     imageVector = Icons.Default.Event,
                                     contentDescription = null,
-                                    tint = UpcomingTokens.BrandBlue,
+                                    tint = UpcomingTokens.BrandPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Column {
                                     Text(
                                         text = override.dateOverride ?: "",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
@@ -260,7 +259,7 @@ fun AvailabilityScreen(
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Remove override",
-                                    tint = AccentRose,
+                                    tint = SemanticError,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -309,8 +308,8 @@ fun AvailabilityScreen(
                             Column {
                                 Text(
                                     text = tzLabel,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
-                                    color = if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.onSurface
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = tzKey,
@@ -319,7 +318,7 @@ fun AvailabilityScreen(
                                 )
                             }
                             if (selected) {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = UpcomingTokens.BrandBlue)
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = UpcomingTokens.BrandPrimary)
                             }
                         }
                     }
@@ -416,7 +415,7 @@ fun TimeChip(
             ) {
                 Text(
                     text = time,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Icon(

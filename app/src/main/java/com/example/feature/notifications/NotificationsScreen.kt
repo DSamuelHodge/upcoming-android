@@ -58,7 +58,7 @@ fun NotificationsScreen(
             item {
                 UpcomingCard(
                     backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                    borderColor = UpcomingTokens.BrandBlue.copy(alpha = 0.3f)
+                    borderColor = UpcomingTokens.BrandPrimary.copy(alpha = 0.3f)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -68,13 +68,13 @@ fun NotificationsScreen(
                         Icon(
                             imageVector = Icons.Outlined.NotificationsActive,
                             contentDescription = null,
-                            tint = UpcomingTokens.BrandBlue,
+                            tint = UpcomingTokens.BrandPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                         Column {
                             Text(
                                 text = "Notification Engine Active",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
@@ -92,7 +92,7 @@ fun NotificationsScreen(
                 UpcomingCard {
                     Text(
                         text = "Trigger Simulated Alerts",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -134,7 +134,7 @@ fun NotificationsScreen(
                 UpcomingCard {
                     Text(
                         text = "Preferences",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -151,7 +151,7 @@ fun NotificationsScreen(
                         Switch(
                             checked = pushAlertsEnabled,
                             onCheckedChange = { pushAlertsEnabled = it },
-                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandBlue)
+                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }
 
@@ -169,7 +169,7 @@ fun NotificationsScreen(
                         Switch(
                             checked = tenMinReminderEnabled,
                             onCheckedChange = { tenMinReminderEnabled = it },
-                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandBlue)
+                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }
 
@@ -187,7 +187,7 @@ fun NotificationsScreen(
                         Switch(
                             checked = soundVibrateEnabled,
                             onCheckedChange = { soundVibrateEnabled = it },
-                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandBlue)
+                            colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }
                 }
@@ -197,7 +197,7 @@ fun NotificationsScreen(
             item {
                 Text(
                     text = "Scheduled Alarms Queue (${upcomingBookings.size})",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -216,9 +216,9 @@ fun NotificationsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.AlarmOn, contentDescription = null, tint = AccentGreen, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.AlarmOn, contentDescription = null, tint = SemanticSuccess, modifier = Modifier.size(20.dp))
                             Column {
-                                Text("Alarm Set: #${booking.uid.take(8)}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                                Text("Alarm Set: #${booking.uid.take(8)}", style = MaterialTheme.typography.titleSmall)
                                 Text("Trigger: 10 mins prior to start", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }

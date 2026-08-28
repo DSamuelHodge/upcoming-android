@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.core.designsystem.*
 import com.example.core.engine.StripePaymentSimulator
@@ -63,8 +62,8 @@ fun EventTypeListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToCreate,
-                containerColor = GeoPrimaryContainerLight,
-                contentColor = GeoOnPrimaryContainerLight,
+                containerColor = SurfaceCreamStrong,
+                contentColor = Ink,
                 shape = UpcomingTokens.RadiusLarge
             ) {
                 Row(
@@ -75,7 +74,7 @@ fun EventTypeListScreen(
                     Icon(imageVector = Icons.Default.Add, contentDescription = null)
                     Text(
                         "New Event Type",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -108,7 +107,7 @@ fun EventTypeListScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = UpcomingTokens.RadiusMedium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = UpcomingTokens.BrandBlue,
+                        focusedBorderColor = UpcomingTokens.BrandPrimary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     ),
                     singleLine = true
@@ -134,13 +133,13 @@ fun EventTypeListScreen(
                             onClick = { viewModel.setFilterType(key) },
                             label = { Text(label) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = UpcomingTokens.BrandBlueLight,
-                                selectedLabelColor = UpcomingTokens.BrandBlue
+                                selectedContainerColor = UpcomingTokens.SelectedBg,
+                                selectedLabelColor = UpcomingTokens.BrandPrimary
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = selected,
-                                selectedBorderColor = UpcomingTokens.BrandBlue,
+                                selectedBorderColor = UpcomingTokens.BrandPrimary,
                                 borderColor = MaterialTheme.colorScheme.outline
                             )
                         )
@@ -167,7 +166,7 @@ fun EventTypeListScreen(
                             )
                             Text(
                                 text = "No Event Types Found",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
@@ -216,7 +215,7 @@ fun EventTypeListScreen(
                         deleteCandidateId?.let { viewModel.deleteEventType(it) }
                         deleteCandidateId = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = AccentRose)
+                    colors = ButtonDefaults.textButtonColors(contentColor = SemanticError)
                 ) {
                     Text("Delete")
                 }
@@ -246,7 +245,7 @@ fun EventTypeItemCard(
     val brandColor = try {
         Color(android.graphics.Color.parseColor(eventType.colorHex))
     } catch (e: Exception) {
-        UpcomingTokens.BrandBlue
+        UpcomingTokens.BrandPrimary
     }
 
     UpcomingCard(
@@ -272,13 +271,13 @@ fun EventTypeItemCard(
                 Column {
                     Text(
                         text = eventType.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "upcoming.io/$username/${eventType.slug}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = UpcomingTokens.BrandBlue
+                        color = UpcomingTokens.BrandPrimary
                     )
                 }
             }
@@ -302,9 +301,9 @@ fun EventTypeItemCard(
                         leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = AccentRose) },
+                        text = { Text("Delete", color = SemanticError) },
                         onClick = { showMenu = false; onDelete() },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = AccentRose) }
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = SemanticError) }
                     )
                 }
             }
@@ -347,12 +346,12 @@ fun EventTypeItemCard(
             if (eventType.priceInCents > 0) {
                 Surface(
                     shape = UpcomingTokens.RadiusFull,
-                    color = AccentPurpleLight
+                    color = SurfaceCard
                 ) {
                     Text(
                         text = StripePaymentSimulator.formatPrice(eventType.priceInCents),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = AccentPurple,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AccentTeal,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -376,7 +375,7 @@ fun EventTypeItemCard(
                     onCheckedChange = { onToggleActive() },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = UpcomingTokens.BrandBlue
+                        checkedTrackColor = UpcomingTokens.BrandPrimary
                     ),
                     modifier = Modifier.height(24.dp)
                 )
@@ -397,13 +396,13 @@ fun EventTypeItemCard(
                     onClick = onTestBooking,
                     shape = UpcomingTokens.RadiusMedium,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = UpcomingTokens.BrandBlue,
+                        containerColor = UpcomingTokens.BrandPrimary,
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
-                    Text("Invitee View", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    Text("Invitee View", style = MaterialTheme.typography.labelSmall)
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(12.dp))
                 }

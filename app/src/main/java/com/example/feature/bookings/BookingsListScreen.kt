@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.core.designsystem.*
 import com.example.core.engine.SchedulingEngine
@@ -54,23 +53,23 @@ fun BookingsListScreen(
             TabRow(
                 selectedTabIndex = uiState.selectedTab,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = UpcomingTokens.BrandBlue,
+                contentColor = UpcomingTokens.BrandPrimary,
                 divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline) }
             ) {
                 Tab(
                     selected = uiState.selectedTab == 0,
                     onClick = { viewModel.setSelectedTab(0) },
-                    text = { Text("Upcoming", fontWeight = FontWeight.SemiBold) }
+                    text = { Text("Upcoming") }
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
                     onClick = { viewModel.setSelectedTab(1) },
-                    text = { Text("Past", fontWeight = FontWeight.SemiBold) }
+                    text = { Text("Past") }
                 )
                 Tab(
                     selected = uiState.selectedTab == 2,
                     onClick = { viewModel.setSelectedTab(2) },
-                    text = { Text("Cancelled", fontWeight = FontWeight.SemiBold) }
+                    text = { Text("Cancelled") }
                 )
             }
 
@@ -117,7 +116,7 @@ fun BookingsListScreen(
                                         1 -> "No Past Meetings"
                                         else -> "No Cancelled Meetings"
                                     },
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
@@ -182,7 +181,7 @@ fun BookingItemCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.eventType?.title ?: "Meeting",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -203,13 +202,13 @@ fun BookingItemCard(
             Icon(
                 imageVector = Icons.Default.CalendarToday,
                 contentDescription = null,
-                tint = UpcomingTokens.BrandBlue,
+                tint = UpcomingTokens.BrandPrimary,
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = "${dateFmt.format(startUtc)} • ${timeFmt.format(startUtc)} - ${timeFmt.format(endUtc)} EDT",
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurface
+                style = UpcomingTextStyles.monoLabel,
+                color = Ink
             )
         }
 
@@ -237,15 +236,15 @@ fun BookingItemCard(
                     },
                     shape = UpcomingTokens.RadiusMedium,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = UpcomingTokens.BrandBlueLight,
-                        contentColor = UpcomingTokens.BrandBlue
+                        containerColor = UpcomingTokens.BrandPrimary,
+                        contentColor = OnPrimary
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
                     Icon(imageVector = Icons.Default.Videocam, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Join Call", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    Text("Join Call", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

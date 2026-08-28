@@ -2,78 +2,38 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Geometric Balance Design Tokens
-val GeoCanvasLight = Color(0xFFFDFBFF)
-val GeoCanvasDark = Color(0xFF131316)
+// Upcoming Design System — warm cream canvas + coral accent
+// Source of truth: upcoming-design-system.md
 
-val GeoTextPrimaryLight = Color(0xFF1C1B1F)
-val GeoTextPrimaryDark = Color(0xFFE5E2E6)
+// Brand & Accent
+val PrimaryCoral = Color(0xFFCC785C) // colors.primary
+val PrimaryCoralActive = Color(0xFFA9583E) // colors.primary-active
+val PrimaryCoralDisabled = Color(0xFFE6DFD8) // colors.primary-disabled
+val AccentTeal = Color(0xFF5DB8A6) // colors.accent-teal
+val AccentAmber = Color(0xFFE8A55A) // colors.accent-amber
 
-val GeoTextSecondaryLight = Color(0xFF44474E)
-val GeoTextSecondaryDark = Color(0xFFC4C6D0)
+// Surface
+val CanvasCream = Color(0xFFFAF9F5) // colors.canvas
+val SurfaceSoft = Color(0xFFF5F0E8) // colors.surface-soft
+val SurfaceCard = Color(0xFFEFE9DE) // colors.surface-card
+val SurfaceCreamStrong = Color(0xFFE8E0D2) // colors.surface-cream-strong
+val SurfaceDark = Color(0xFF181715) // colors.surface-dark
+val SurfaceDarkElevated = Color(0xFF252320) // colors.surface-dark-elevated
+val SurfaceDarkSoft = Color(0xFF1F1E1B) // colors.surface-dark-soft
+val Hairline = Color(0xFFE6DFD8) // colors.hairline
+val HairlineSoft = Color(0xFFEBE6DF) // colors.hairline-soft
 
-val GeoBorderLight = Color(0xFFC4C6D0)
-val GeoBorderSubtleLight = Color(0xFFE1E2EC)
-val GeoBorderDark = Color(0xFF44474E)
-val GeoBorderSubtleDark = Color(0xFF2C2C30)
+// Text
+val Ink = Color(0xFF141413) // colors.ink
+val BodyStrong = Color(0xFF252523) // colors.body-strong
+val BodyText = Color(0xFF3D3D3A) // colors.body
+val MutedText = Color(0xFF6C6A64) // colors.muted
+val MutedSoftText = Color(0xFF8E8B82) // colors.muted-soft
+val OnPrimary = Color(0xFFFFFFFF) // colors.on-primary
+val OnDark = Color(0xFFFAF9F5) // colors.on-dark
+val OnDarkSoft = Color(0xFFA09D96) // colors.on-dark-soft
 
-val GeoSurfaceLight = Color(0xFFFFFFFF)
-val GeoSurfaceDark = Color(0xFF1C1B1F)
-
-val GeoSurfaceContainerLight = Color(0xFFF1F0F4)
-val GeoSurfaceContainerDark = Color(0xFF25252A)
-
-val GeoNavBg = Color(0xFFF3F3FA)
-val GeoNavBackgroundLight = Color(0xFFF3F3FA)
-val GeoNavBackgroundDark = Color(0xFF18181C)
-
-// Geometric Blue Accents
-val GeoPrimary = Color(0xFF0061A4)
-val GeoPrimaryContainerLight = Color(0xFFD1E4FF)
-val GeoOnPrimaryContainerLight = Color(0xFF001D36)
-val GeoPrimaryDark = Color(0xFF9ECAFF)
-val GeoPrimaryContainerDark = Color(0xFF00497D)
-val GeoOnPrimaryContainerDark = Color(0xFFD1E4FF)
-
-// Avatar Pill / Host Badge
-val GeoAvatarBg = Color(0xFFD9E2FF)
-val GeoAvatarBorder = Color(0xFFBAC6EA)
-val GeoAvatarText = Color(0xFF001945)
-
-// Geometric Featured Widget (Lavender accent)
-val GeoFeaturedBgLight = Color(0xFFEADDFF)
-val GeoFeaturedBorderLight = Color(0xFFD0BCFF)
-val GeoFeaturedTextLight = Color(0xFF21005D)
-val GeoFeaturedBgDark = Color(0xFF381E72)
-val GeoFeaturedBorderDark = Color(0xFF4F378B)
-val GeoFeaturedTextDark = Color(0xFFEADDFF)
-
-// Status Accents
-val GeoGreen = Color(0xFF1B6B2B)
-val GeoGreenDot = Color(0xFF4CAF50)
-val GeoGreenLight = Color(0xFFD7F8DD)
-
-val GeoAmber = Color(0xFF8C5300)
-val GeoAmberLight = Color(0xFFFFEECC)
-
-val GeoRose = Color(0xFFBA1A1A)
-val GeoRoseLight = Color(0xFFFFDAD6)
-
-val GeoPurple = Color(0xFF6750A4)
-val GeoPurpleLight = Color(0xFFEADDFF)
-
-// Compatibility aliases mapped to Geometric Balance palette
-val UpcomingBluePrimary = GeoPrimary
-val UpcomingBlueSecondary = GeoPrimaryDark
-val UpcomingBlueLight = GeoPrimaryContainerLight
-val UpcomingBlueDark = GeoOnPrimaryContainerLight
-val AccentGreen = GeoGreen
-val AccentGreenLight = GeoGreenLight
-val AccentAmber = GeoAmber
-val AccentAmberLight = GeoAmberLight
-val AccentRose = GeoRose
-val AccentRoseLight = GeoRoseLight
-val AccentPurple = GeoPurple
-val AccentPurpleLight = GeoPurpleLight
-
-
+// Semantic
+val SemanticSuccess = Color(0xFF5DB872) // colors.success
+val SemanticWarning = Color(0xFFD4A017) // colors.warning
+val SemanticError = Color(0xFFC64545) // colors.error

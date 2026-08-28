@@ -142,13 +142,13 @@ fun EventTypeEditorScreen(
                 item {
                     Surface(
                         shape = UpcomingTokens.RadiusMedium,
-                        color = AccentRoseLight,
-                        border = BorderStroke(1.dp, AccentRose)
+                        color = SurfaceSoft,
+                        border = BorderStroke(1.dp, SemanticError)
                     ) {
                         Text(
                             text = errorMessage ?: "",
-                            color = AccentRose,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = SemanticError,
+                            style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -160,7 +160,7 @@ fun EventTypeEditorScreen(
                 UpcomingCard {
                     Text(
                         text = "Event Details",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -211,7 +211,7 @@ fun EventTypeEditorScreen(
                 UpcomingCard {
                     Text(
                         text = "Duration & Timing Rules",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -228,7 +228,7 @@ fun EventTypeEditorScreen(
                                 onClick = { durationMinutes = dur },
                                 label = { Text("$dur min") },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = UpcomingTokens.BrandBlue,
+                                    selectedContainerColor = UpcomingTokens.BrandPrimary,
                                     selectedLabelColor = Color.White
                                 )
                             )
@@ -280,7 +280,7 @@ fun EventTypeEditorScreen(
                 UpcomingCard {
                     Text(
                         text = "Scheduling Type (Multi-Host Routing)",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -300,10 +300,10 @@ fun EventTypeEditorScreen(
                                 .clip(UpcomingTokens.RadiusMedium)
                                 .clickable { schedulingType = typeKey },
                             shape = UpcomingTokens.RadiusMedium,
-                            color = if (selected) UpcomingTokens.BrandBlueLight else MaterialTheme.colorScheme.surface,
+                            color = if (selected) UpcomingTokens.SelectedBg else MaterialTheme.colorScheme.surface,
                             border = BorderStroke(
                                 1.5.dp,
-                                if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.outline
+                                if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.outline
                             )
                         ) {
                             Row(
@@ -314,13 +314,13 @@ fun EventTypeEditorScreen(
                                 RadioButton(
                                     selected = selected,
                                     onClick = { schedulingType = typeKey },
-                                    colors = RadioButtonDefaults.colors(selectedColor = UpcomingTokens.BrandBlue)
+                                    colors = RadioButtonDefaults.colors(selectedColor = UpcomingTokens.BrandPrimary)
                                 )
                                 Column {
                                     Text(
                                         text = typeTitle,
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.onSurface
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = typeDesc,
@@ -339,7 +339,7 @@ fun EventTypeEditorScreen(
                 UpcomingCard {
                     Text(
                         text = "Location / Video Call",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -361,15 +361,15 @@ fun EventTypeEditorScreen(
                                 .clip(UpcomingTokens.RadiusMedium)
                                 .clickable { locationType = locKey },
                             shape = UpcomingTokens.RadiusMedium,
-                            color = if (selected) UpcomingTokens.BrandBlueLight else MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.outline)
+                            color = if (selected) UpcomingTokens.SelectedBg else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.outline)
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(imageVector = icon, contentDescription = null, tint = UpcomingTokens.BrandBlue)
+                                Icon(imageVector = icon, contentDescription = null, tint = UpcomingTokens.BrandPrimary)
                                 Text(
                                     text = locTitle,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
@@ -377,7 +377,7 @@ fun EventTypeEditorScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                                 if (selected) {
-                                    Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = UpcomingTokens.BrandBlue)
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = UpcomingTokens.BrandPrimary)
                                 }
                             }
                         }
@@ -397,11 +397,11 @@ fun EventTypeEditorScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(imageVector = Icons.Outlined.CreditCard, contentDescription = null, tint = AccentPurple)
+                            Icon(imageVector = Icons.Outlined.CreditCard, contentDescription = null, tint = AccentTeal)
                             Column {
                                 Text(
                                     text = "Stripe Payment Collection",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
@@ -416,7 +416,7 @@ fun EventTypeEditorScreen(
                             onCheckedChange = { isPaid = it },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = AccentPurple
+                                checkedTrackColor = AccentTeal
                             )
                         )
                     }
@@ -441,7 +441,7 @@ fun EventTypeEditorScreen(
                 UpcomingCard {
                     Text(
                         text = "Card Theme Color",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))

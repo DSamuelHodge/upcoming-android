@@ -73,7 +73,7 @@ fun InviteeBookingScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = UpcomingTokens.BrandBlue)
+                CircularProgressIndicator(color = UpcomingTokens.BrandPrimary)
             }
         } else {
             when (val step = uiState.step) {
@@ -152,7 +152,7 @@ fun DateAndTimeStepView(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = eventType.title,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -164,15 +164,15 @@ fun DateAndTimeStepView(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(Icons.Outlined.Timer, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Outlined.Timer, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(14.dp))
                                 Text("${eventType.lengthMinutes} min", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium))
                             }
                             if (eventType.priceInCents > 0) {
                                 Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     StripePaymentSimulator.formatPrice(eventType.priceInCents),
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                    color = AccentPurple
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AccentTeal
                                 )
                             }
                         }
@@ -195,7 +195,7 @@ fun DateAndTimeStepView(
         item {
             Text(
                 text = "Select a Date",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -228,8 +228,8 @@ fun DateAndTimeStepView(
                             .clip(UpcomingTokens.RadiusMedium)
                             .clickable { onDateSelected(date) },
                         shape = UpcomingTokens.RadiusMedium,
-                        color = if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.outline)
+                        color = if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.outline)
                     ) {
                         Column(
                             modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
@@ -237,14 +237,14 @@ fun DateAndTimeStepView(
                         ) {
                             Text(
                                 text = dayOfWeekFmt.format(date).uppercase(),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.labelSmall,
                                 color = if (selected) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = dayNumFmt.format(date),
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
+                                style = UpcomingTextStyles.monoData,
+                                color = if (selected) Color.White else Ink
                             )
                             Text(
                                 text = monthFmt.format(date),
@@ -267,13 +267,13 @@ fun DateAndTimeStepView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(Icons.Outlined.Public, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.Public, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(16.dp))
                 Text(
                     text = "Time zone: ${uiState.inviteeTimezone}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    color = UpcomingTokens.BrandBlue
+                    color = UpcomingTokens.BrandPrimary
                 )
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(16.dp))
             }
         }
 
@@ -282,7 +282,7 @@ fun DateAndTimeStepView(
             val dateTitleFmt = SimpleDateFormat("EEEE, MMMM d", Locale.US)
             Text(
                 text = "Available Slots for ${dateTitleFmt.format(uiState.selectedDate)}",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -298,7 +298,7 @@ fun DateAndTimeStepView(
                         Icon(Icons.Outlined.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
                         Text(
                             text = "No open slots on this date",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
@@ -318,10 +318,10 @@ fun DateAndTimeStepView(
                         .clip(UpcomingTokens.RadiusMedium)
                         .clickable { onSlotSelected(slot) },
                     shape = UpcomingTokens.RadiusMedium,
-                    color = if (selected) UpcomingTokens.BrandBlueLight else MaterialTheme.colorScheme.surface,
+                    color = if (selected) UpcomingTokens.SelectedBg else MaterialTheme.colorScheme.surface,
                     border = BorderStroke(
                         1.5.dp,
-                        if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.outline
+                        if (selected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.outline
                     )
                 ) {
                     Row(
@@ -331,11 +331,11 @@ fun DateAndTimeStepView(
                     ) {
                         Text(
                             text = slot.displayLocalTime,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (selected) UpcomingTokens.BrandBlue else MaterialTheme.colorScheme.onSurface
+                            style = UpcomingTextStyles.monoData,
+                            color = if (selected) UpcomingTokens.BrandPrimary else Ink
                         )
                         if (selected) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -346,8 +346,8 @@ fun DateAndTimeStepView(
             item {
                 Text(
                     text = uiState.errorMessage,
-                    color = AccentRose,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                    color = SemanticError,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -415,13 +415,13 @@ fun InviteeDetailsStepView(
             UpcomingCard(backgroundColor = MaterialTheme.colorScheme.surfaceVariant) {
                 Text(
                     text = "Selected Appointment",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = UpcomingTokens.BrandBlue
+                    style = MaterialTheme.typography.labelSmall,
+                    color = UpcomingTokens.BrandPrimary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = eventType.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (slot != null) {
@@ -438,7 +438,7 @@ fun InviteeDetailsStepView(
             UpcomingCard {
                 Text(
                     text = "Your Information",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(14.dp))
@@ -496,8 +496,8 @@ fun InviteeDetailsStepView(
             item {
                 Text(
                     text = uiState.errorMessage,
-                    color = AccentRose,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                    color = SemanticError,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -534,7 +534,7 @@ fun StripePaymentStepView(
         item {
             UpcomingCard(
                 backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                borderColor = AccentPurple.copy(alpha = 0.3f)
+                borderColor = AccentTeal.copy(alpha = 0.3f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -542,13 +542,13 @@ fun StripePaymentStepView(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Stripe Secure Checkout", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = AccentPurple)
-                        Text(eventType.title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                        Text("Stripe Secure Checkout", style = MaterialTheme.typography.labelSmall, color = AccentTeal)
+                        Text(eventType.title, style = MaterialTheme.typography.titleMedium)
                     }
                     Text(
                         text = priceStr,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = AccentPurple
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = AccentTeal
                     )
                 }
             }
@@ -561,9 +561,9 @@ fun StripePaymentStepView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Payment Method", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Text("Payment Method", style = MaterialTheme.typography.titleMedium)
                     TextButton(onClick = onAutofillTest) {
-                        Text("Autofill Test Card", color = UpcomingTokens.BrandBlue)
+                        Text("Autofill Test Card", color = UpcomingTokens.BrandPrimary)
                     }
                 }
 
@@ -623,8 +623,8 @@ fun StripePaymentStepView(
             item {
                 Text(
                     text = uiState.errorMessage,
-                    color = AccentRose,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                    color = SemanticError,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -634,7 +634,7 @@ fun StripePaymentStepView(
                 text = "Pay $priceStr & Confirm Booking",
                 onClick = onSubmitPayment,
                 isLoading = uiState.isSubmitting,
-                containerColor = AccentPurple,
+                containerColor = AccentTeal,
                 leadingIcon = Icons.Default.Lock
             )
         }
@@ -673,13 +673,13 @@ fun BookingConfirmationStepView(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(AccentGreenLight),
+                    .background(SurfaceSoft),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Confirmed",
-                    tint = AccentGreen,
+                    tint = SemanticSuccess,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -688,7 +688,7 @@ fun BookingConfirmationStepView(
 
             Text(
                 text = "You are scheduled!",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
@@ -706,7 +706,7 @@ fun BookingConfirmationStepView(
             ) {
                 Text(
                     text = eventType.title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -716,10 +716,11 @@ fun BookingConfirmationStepView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(16.dp))
                     Text(
                         text = dateFmt.format(startUtc),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                        style = UpcomingTextStyles.monoData,
+                        color = Ink
                     )
                 }
 
@@ -729,10 +730,11 @@ fun BookingConfirmationStepView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, tint = UpcomingTokens.BrandBlue, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(16.dp))
                     Text(
                         text = "${timeFmt.format(startUtc)} – ${timeFmt.format(endUtc)} EDT",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = UpcomingTextStyles.monoData,
+                        color = Ink
                     )
                 }
 
@@ -742,7 +744,7 @@ fun BookingConfirmationStepView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Videocam, contentDescription = null, tint = UpcomingTokens.DailyVideoPurple, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Videocam, contentDescription = null, tint = UpcomingTokens.DailyVideoAccent, modifier = Modifier.size(16.dp))
                     Text(
                         text = "Web conferencing details provided upon entry",
                         style = MaterialTheme.typography.bodySmall,
@@ -784,7 +786,7 @@ fun BookingConfirmationStepView(
 
         item {
             TextButton(onClick = onFinish) {
-                Text("Return to Dashboard", color = UpcomingTokens.BrandBlue, fontWeight = FontWeight.Bold)
+                Text("Return to Dashboard", color = UpcomingTokens.BrandPrimary)
             }
         }
     }

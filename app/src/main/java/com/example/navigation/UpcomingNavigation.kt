@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -252,8 +251,8 @@ fun GeometricBottomNavBar(
     onNavigate: (String) -> Unit
 ) {
     Surface(
-        color = GeoNavBg,
-        border = BorderStroke(1.dp, GeoBorderSubtleLight),
+        color = CanvasCream,
+        border = BorderStroke(1.dp, HairlineSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -271,7 +270,7 @@ fun GeometricBottomNavBar(
                 }
 
                 val icon = if (isSelected) item.selectedIcon else item.unselectedIcon
-                val contentColor = if (isSelected) GeoOnPrimaryContainerLight else GeoTextSecondaryLight
+                val contentColor = if (isSelected) Ink else MutedText
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -286,7 +285,7 @@ fun GeometricBottomNavBar(
                             .size(width = 48.dp, height = 28.dp)
                             .clip(UpcomingTokens.RadiusFull)
                             .background(
-                                if (isSelected) GeoPrimaryContainerLight else Color.Transparent
+                                if (isSelected) SurfaceCreamStrong else Color.Transparent
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -301,7 +300,6 @@ fun GeometricBottomNavBar(
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 11.sp
                         ),
                         color = contentColor
