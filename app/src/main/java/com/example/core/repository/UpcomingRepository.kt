@@ -549,6 +549,66 @@ class UpcomingRepository(
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Payments (book → pay → mark-paid). Card data goes device → Stripe
+    // directly (publishable key only); the server verifies the PaymentIntent
+    // before flipping `paid`.
+    // -----------------------------------------------------------------------
+
+    suspend fun createPaymentIntent(eventTypeId: Long): Result<com.example.core.network.CreateIntentResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching { api!!.createPaymentIntent(com.example.core.network.CreateIntentRequest(eventTypeId)) }
+        }
+
+    /** Creates a PaymentMethod from raw card fields (tokenized client-side by
+     *  the Stripe SDK) and confirms the PaymentIntent. Returns the PI id. */
+    suspend fun confirmStripePayment(
+        clientSecret: String,
+        cardNumber: String,
+        expMonth: Int,
+        expYear: Int,
+        cvc: String,
+        cardholderName: String?
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val stripe = com.stripe.android.Stripe(context, com.example.BuildConfig.STRIPE_PUBLISHABLE_KEY)
+            val card = com.stripe.android.model.PaymentMethodCreateParams.Card.Builder()
+                .setNumber(cardNumber.replace(" ", ""))
+                .setExpiryMonth(expMonth)
+                .setExpiryYear(expYear)
+                .setCvc(cvc)
+                .build()
+            val params = com.stripe.android.model.PaymentMethodCreateParams.create(
+                card = card,
+                billingDetails = com.stripe.android.model.PaymentMethod.BillingDetails(name = cardholderName)
+            )
+            val paymentMethod = stripe.createPaymentMethodSynchronous(params)
+            val confirmParams = com.stripe.android.model.ConfirmPaymentIntentParams
+                .createWithPaymentMethodId(paymentMethod.id!!, clientSecret)
+            val intent = stripe.confirmPaymentIntentSynchronous(confirmParams)
+            if (intent.status != com.stripe.android.model.StripeIntent.Status.Succeeded) {
+                throw IllegalStateException("Payment not completed (status: ${intent.status})")
+            }
+            intent.id ?: throw IllegalStateException("Payment succeeded without an id")
+        }
+    }
+
+    suspend fun markBookingPaid(uid: String, paymentIntentId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                api!!.markBookingPaidInternal(uid, paymentIntentId)
+                val booking = bookingDao.getBookingByUid(uid)
+                if (booking != null) {
+                    bookingDao.updateBooking(
+                        booking.copy(paid = true, paymentIntentId = paymentIntentId)
+                    )
+                }
+            }
+        }
+
+    private suspend fun com.example.core.network.UpcomingApi.markBookingPaidInternal(uid: String, paymentIntentId: String) =
+        markPaid(com.example.core.network.MarkPaidRequest(uid, paymentIntentId))
+
     suspend fun seedInitialDataIfEmpty() = withContext(Dispatchers.IO) {
         val existingUsers = userDao.getAllUsers()
         if (existingUsers.isNotEmpty()) return@withContext
