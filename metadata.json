@@ -1,0 +1,6 @@
+{
+  "name": "Upcoming",
+  "description": "Calendly-grade scheduling platform backed by upcoming-db with multi-host routing, availability rules, invitee booking, Stripe payments, FCM alerts, and exact reminders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
