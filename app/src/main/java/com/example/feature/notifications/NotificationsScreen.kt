@@ -22,6 +22,7 @@ import com.example.core.engine.NotificationAndReminderManager
 import com.example.core.model.Booking
 import com.example.core.repository.UpcomingRepository
 import com.example.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,16 +32,23 @@ fun NotificationsScreen(
 ) {
     val context = LocalContext.current
     val upcomingBookings by repository.upcomingBookings.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
 
-    var pushAlertsEnabled by remember { mutableStateOf(true) }
-    var soundVibrateEnabled by remember { mutableStateOf(true) }
-    var tenMinReminderEnabled by remember { mutableStateOf(true) }
+    // Persisted device-local prefs (Settings → Notifications). Survives
+    // restarts and gates the repository's post-booking alarm + FCM paths.
+    val userPreferences = remember { com.example.core.prefs.UserPreferences(context) }
+    val prefs by userPreferences.notificationPrefs.collectAsState(
+        initial = com.example.core.prefs.NotificationPrefs()
+    )
+    val pushAlertsEnabled = prefs.pushAlertsEnabled
+    val soundVibrateEnabled = prefs.soundVibrateEnabled
+    val tenMinReminderEnabled = prefs.tenMinReminderEnabled
 
     Scaffold(
         topBar = {
             UpcomingTopBar(
-                title = "Push & Exact Alarms",
-                subtitle = "FCM Cloud Notifications & Heads-up Reminders",
+                title = "Notifications & Reminders",
+                subtitle = "Device-level alerts; toggles persist and gate booking alarms",
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNavigationClick = onNavigateBack
             )
@@ -150,7 +158,7 @@ fun NotificationsScreen(
                         }
                         Switch(
                             checked = pushAlertsEnabled,
-                            onCheckedChange = { pushAlertsEnabled = it },
+                            onCheckedChange = { scope.launch { userPreferences.setPushAlertsEnabled(it) } },
                             colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }
@@ -168,7 +176,7 @@ fun NotificationsScreen(
                         }
                         Switch(
                             checked = tenMinReminderEnabled,
-                            onCheckedChange = { tenMinReminderEnabled = it },
+                            onCheckedChange = { scope.launch { userPreferences.setTenMinReminderEnabled(it) } },
                             colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }
@@ -186,7 +194,7 @@ fun NotificationsScreen(
                         }
                         Switch(
                             checked = soundVibrateEnabled,
-                            onCheckedChange = { soundVibrateEnabled = it },
+                            onCheckedChange = { scope.launch { userPreferences.setSoundVibrateEnabled(it) } },
                             colors = SwitchDefaults.colors(checkedTrackColor = UpcomingTokens.BrandPrimary)
                         )
                     }

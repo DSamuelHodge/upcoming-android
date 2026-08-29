@@ -40,6 +40,8 @@ import com.example.feature.eventtypes.EventTypeEditorScreen
 import com.example.feature.eventtypes.EventTypeListScreen
 import com.example.feature.eventtypes.EventTypesViewModel
 import com.example.feature.notifications.NotificationsScreen
+import com.example.feature.settings.SettingsScreen
+import com.example.feature.settings.SettingsViewModel
 import com.example.ui.theme.*
 
 object UpcomingDestinations {
@@ -50,7 +52,8 @@ object UpcomingDestinations {
     const val BOOKINGS = "bookings"
     const val BOOKING_DETAIL = "booking_detail"
     const val BOOKING_FLOW = "book"
-    const val NOTIFICATIONS = "notifications"
+    const val SETTINGS = "settings"
+    const val NOTIFICATIONS = "settings/notifications"
 }
 
 data class GeometricNavItem(
@@ -90,7 +93,7 @@ fun UpcomingNavHost(
             unselectedIcon = Icons.Outlined.DateRange
         ),
         GeometricNavItem(
-            route = UpcomingDestinations.NOTIFICATIONS,
+            route = UpcomingDestinations.SETTINGS,
             label = "Settings",
             selectedIcon = Icons.Filled.Tune,
             unselectedIcon = Icons.Outlined.Tune
@@ -102,7 +105,7 @@ fun UpcomingNavHost(
         UpcomingDestinations.EVENT_TYPES,
         UpcomingDestinations.AVAILABILITY,
         UpcomingDestinations.BOOKINGS,
-        UpcomingDestinations.NOTIFICATIONS
+        UpcomingDestinations.SETTINGS
     )
 
     Scaffold(
@@ -141,7 +144,7 @@ fun UpcomingNavHost(
                     onNavigateToEventTypes = { navController.navigate(UpcomingDestinations.EVENT_TYPES) },
                     onNavigateToAvailability = { navController.navigate(UpcomingDestinations.AVAILABILITY) },
                     onNavigateToBookings = { navController.navigate(UpcomingDestinations.BOOKINGS) },
-                    onNavigateToNotifications = { navController.navigate(UpcomingDestinations.NOTIFICATIONS) },
+                    onNavigateToNotifications = { navController.navigate(UpcomingDestinations.SETTINGS) },
                     onOpenBookingFlow = { eventTypeId ->
                         navController.navigate("${UpcomingDestinations.BOOKING_FLOW}/$eventTypeId")
                     },
@@ -233,7 +236,17 @@ fun UpcomingNavHost(
                 )
             }
 
-            // 8. Notifications & Alarms Center
+            // 8. Settings Hub
+            composable(UpcomingDestinations.SETTINGS) {
+                val viewModel = rememberViewModel { SettingsViewModel(repository) }
+                SettingsScreen(
+                    viewModel = viewModel,
+                    onNavigateToNotifications = { navController.navigate(UpcomingDestinations.NOTIFICATIONS) },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // 9. Notifications & Alarms Center (nested under Settings)
             composable(UpcomingDestinations.NOTIFICATIONS) {
                 NotificationsScreen(
                     repository = repository,

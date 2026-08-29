@@ -175,3 +175,55 @@ data class MarkPaidResponse(
 
 @JsonClass(generateAdapter = false)
 data class ApiErrorDto(val error: String? = null)
+
+// ---------------------------------------------------------------------------
+// User settings (/me)
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class UserMetadataDto(
+    val defaultLocation: LocationDto? = null,
+    val prefs: UserPrefsDto? = null,
+    val role: String? = null,
+    val company: String? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class UserPrefsDto(
+    val timeFormat: String? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class ScheduleDto(
+    val id: Long = 0,
+    val name: String = "",
+    val timezone: String = ""
+)
+
+@JsonClass(generateAdapter = false)
+data class MeResponseDto(
+    val id: Long,
+    val email: String,
+    val username: String,
+    val timezone: String,
+    val displayName: String = "",
+    val avatarUrl: String = "",
+    val metadata: UserMetadataDto = UserMetadataDto(),
+    val schedule: ScheduleDto? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class PatchMeRequest(
+    val displayName: String? = null,
+    val avatarUrl: String? = null,
+    val email: String? = null,
+    val username: String? = null,
+    val timezone: String? = null,
+    val metadata: UserMetadataDto? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class PatchScheduleRequest(
+    val name: String? = null,
+    val timezone: String? = null
+)

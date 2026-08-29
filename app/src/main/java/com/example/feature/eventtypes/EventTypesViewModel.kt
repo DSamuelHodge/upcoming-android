@@ -26,6 +26,17 @@ class EventTypesViewModel(
         }
     }
 
+    /** User-level default location from Settings — prefills new event types. */
+    private val _defaultLocation =
+        MutableStateFlow<com.example.core.network.LocationDto?>(null)
+    val defaultLocation: StateFlow<com.example.core.network.LocationDto?> = _defaultLocation.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _defaultLocation.value = runCatching { repository.defaultLocation() }.getOrNull()
+        }
+    }
+
     private val _searchQuery = MutableStateFlow("")
     private val _filterType = MutableStateFlow("ALL")
 

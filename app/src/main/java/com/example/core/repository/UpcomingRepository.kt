@@ -12,12 +12,19 @@ import com.example.core.network.BookingRowDto
 import com.example.core.network.CreateBookingRequest
 import com.example.core.network.EventTypeDto
 import com.example.core.network.LocationDto
+import com.example.core.network.MeResponseDto
+import com.example.core.network.PatchMeRequest
+import com.example.core.network.PatchScheduleRequest
 import com.example.core.network.UpcomingApi
+import com.example.core.network.UpcomingApiClient
+import com.example.core.network.UserMetadataDto
+import com.example.core.network.UserPrefsDto
 import com.example.core.network.apiCall
 import com.example.core.network.isNetworkError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.*
@@ -33,6 +40,12 @@ class UpcomingRepository(
     private val eventTypeDao = database.eventTypeDao()
     private val bookingDao = database.bookingDao()
     private val reminderDao = database.reminderDao()
+    private val userPreferences = com.example.core.prefs.UserPreferences(context)
+
+    /** The server identity. Starts at the local seed id and re-points to the
+     *  /me user as soon as a refresh lands, so every "primary user" consumer
+     *  follows the real account. */
+    private val primaryUserId = kotlinx.coroutines.flow.MutableStateFlow(1L)
 
     val allEventTypes: Flow<List<EventType>> = eventTypeDao.getAllEventTypesFlow().map { list ->
         list.map { it.toDomain() }
@@ -99,6 +112,110 @@ class UpcomingRepository(
         }
     }
 
+    /** Pull the user settings profile from the API into Room (upsert by id).
+     *  Returns true when fresh data landed. */
+    suspend fun refreshMe(): Boolean = withContext(Dispatchers.IO) {
+        val api = api ?: return@withContext false
+        try {
+            val me = apiCall { api.getMe() }
+            storeRemoteUser(me)
+            primaryUserId.value = me.id
+            true
+        } catch (e: Exception) {
+            if (!e.isNetworkError()) throw e
+            false
+        }
+    }
+
+    private suspend fun storeRemoteUser(me: MeResponseDto) {
+        val existing = userDao.getUserById(me.id)
+        userDao.insertUser(
+            UserEntity(
+                id = me.id,
+                email = me.email,
+                username = me.username,
+                displayName = me.displayName,
+                timezone = me.timezone,
+                avatarUrl = me.avatarUrl,
+                metadata = UpcomingApiClient.moshi
+                    .adapter(UserMetadataDto::class.java)
+                    .toJson(me.metadata)
+            )
+        )
+        me.schedule?.let { schedule ->
+            val local = scheduleDao.getScheduleByUserId(me.id)
+            val entity = ScheduleEntity(
+                id = local?.id ?: schedule.id,
+                userId = me.id,
+                name = schedule.name,
+                timezone = schedule.timezone
+            )
+            if (local != null) scheduleDao.updateSchedule(entity) else scheduleDao.insertSchedule(entity)
+        }
+    }
+
+    /** Server-backed profile update: PATCH /me then mirror into Room. */
+    suspend fun updateProfile(
+        displayName: String? = null,
+        avatarUrl: String? = null,
+        email: String? = null,
+        username: String? = null,
+        metadata: UserMetadataDto? = null
+    ): User = withContext(Dispatchers.IO) {
+        val api = api ?: throw ApiException.Server("offline")
+        val me = apiCall { api.patchMe(PatchMeRequest(displayName, avatarUrl, email, username, null, metadata)) }
+        storeRemoteUser(me)
+        me.toDomainUser()
+    }
+
+    /** Timezone change: PATCH /me/schedule keeps schedules.timezone (the
+     *  availability source of truth) and users.timezone in lockstep
+     *  server-side; we mirror both writes into Room. */
+    suspend fun updateTimezone(newTimezone: String): User = withContext(Dispatchers.IO) {
+        val api = api ?: throw ApiException.Server("offline")
+        val me = apiCall { api.patchSchedule(PatchScheduleRequest(timezone = newTimezone)) }
+        storeRemoteUser(me)
+        me.toDomainUser()
+    }
+
+    /** Convenience wrapper: user-level default location lives in metadata. */
+    suspend fun updateDefaultLocation(location: LocationDto?): User =
+        withContext(Dispatchers.IO) {
+            val current = currentMetadata()
+            updateProfile(metadata = current.copy(defaultLocation = location))
+        }
+
+    suspend fun currentTimeFormatPref(): String? =
+        runCatching { currentMetadata().prefs?.timeFormat }.getOrNull()
+
+    /** User-level default location (from metadata) for prefilling new event
+     *  types' location menus; null when none is set. */
+    suspend fun defaultLocation(): LocationDto? =
+        runCatching { currentMetadata().defaultLocation }.getOrNull()
+
+    suspend fun setTimeFormatPref(timeFormat: String): User =
+        updateProfile(metadata = currentMetadata().copy(prefs = UserPrefsDto(timeFormat)))
+
+    private suspend fun currentMetadata(): UserMetadataDto {
+        val user = userDao.getUserById(1)
+        val raw = user?.metadata ?: "{}"
+        return runCatching {
+            UpcomingApiClient.moshi
+                .adapter(UserMetadataDto::class.java).fromJson(raw)
+        }.getOrNull() ?: UserMetadataDto()
+    }
+
+    private fun com.example.core.network.MeResponseDto.toDomainUser(): User = User(
+        id = id,
+        email = email,
+        username = username,
+        displayName = displayName,
+        timezone = timezone,
+        avatarUrl = avatarUrl,
+        metadata = UpcomingApiClient.moshi
+            .adapter(UserMetadataDto::class.java).toJson(metadata)
+    )
+
     private suspend fun upsertBookingRow(row: BookingRowDto) {
         val existing = bookingDao.getBookingByUid(row.uid)
         val entity = BookingEntity(
@@ -145,7 +262,7 @@ class UpcomingRepository(
     )
 
     suspend fun getPrimaryUser(): User {
-        val userEntity = userDao.getUserById(1)
+        val userEntity = userDao.getUserById(primaryUserId.value)
         return userEntity?.toDomain() ?: User(
             id = 1,
             email = "alex.rivera@upcoming.io",
@@ -155,8 +272,11 @@ class UpcomingRepository(
         )
     }
 
+    @kotlinx.coroutines.ExperimentalCoroutinesApi
     fun getPrimaryUserFlow(): Flow<User?> {
-        return userDao.getUserByIdFlow(1).map { it?.toDomain() }
+        return primaryUserId.flatMapLatest { id ->
+            userDao.getUserByIdFlow(id).map { it?.toDomain() }
+        }
     }
 
     suspend fun getScheduleForUser(userId: Long): Schedule {
@@ -426,38 +546,44 @@ class UpcomingRepository(
         attendeeName: String?,
         attendeeEmail: String
     ) {
-        // Schedule exact alarm reminder 15 mins prior
-        NotificationAndReminderManager.scheduleExactAlarm(
-            context = context,
-            booking = booking,
-            eventType = eventType,
-            attendeeName = attendeeName,
-            reminderMinutesBefore = 15
-        )
-
-        // Record reminder in DB
-        val reminderTriggerTimeMs =
-            SchedulingEngine.parseIsoUtc(booking.startTimeUtc).time - (15 * 60 * 1000L)
-        reminderDao.insertReminder(
-            ReminderEntity(
-                bookingId = booking.id,
-                type = "exact_alarm",
-                triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(reminderTriggerTimeMs)),
-                title = "Upcoming: ${eventType.title}",
-                body = "Meeting with ${attendeeName ?: attendeeEmail} starting in 15 minutes",
-                status = "scheduled",
-                isFired = false,
-                createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
+        val prefs = userPreferences.notificationPrefs.first()
+        // Schedule exact alarm reminder 15 mins prior (honors the device
+        // notification toggles from Settings → Notifications).
+        if (prefs.tenMinReminderEnabled) {
+            NotificationAndReminderManager.scheduleExactAlarm(
+                context = context,
+                booking = booking,
+                eventType = eventType,
+                attendeeName = attendeeName,
+                reminderMinutesBefore = 15
             )
-        )
+
+            // Record reminder in DB
+            val reminderTriggerTimeMs =
+                SchedulingEngine.parseIsoUtc(booking.startTimeUtc).time - (15 * 60 * 1000L)
+            reminderDao.insertReminder(
+                ReminderEntity(
+                    bookingId = booking.id,
+                    type = "exact_alarm",
+                    triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(reminderTriggerTimeMs)),
+                    title = "Upcoming: ${eventType.title}",
+                    body = "Meeting with ${attendeeName ?: attendeeEmail} starting in 15 minutes",
+                    status = "scheduled",
+                    isFired = false,
+                    createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
+                )
+            )
+        }
 
         // Trigger simulated real-time FCM notification
-        NotificationAndReminderManager.triggerFcmNotification(
-            context = context,
-            title = "New Booking Confirmed!",
-            body = "${attendeeName ?: attendeeEmail} booked ${eventType.title} on ${booking.startTimeUtc.take(10)}",
-            bookingUid = booking.uid
-        )
+        if (prefs.pushAlertsEnabled) {
+            NotificationAndReminderManager.triggerFcmNotification(
+                context = context,
+                title = "New Booking Confirmed!",
+                body = "${attendeeName ?: attendeeEmail} booked ${eventType.title} on ${booking.startTimeUtc.take(10)}",
+                bookingUid = booking.uid
+            )
+        }
     }
 
     /** Persists a handler BookingResult into Room (booking + attendee rows) and
@@ -512,14 +638,14 @@ class UpcomingRepository(
 
     /** Parses the CHOSEN-location JSON (a single object) into the wire shape. */
     private fun parseChosenLocation(locationJson: String): LocationDto {
-        val adapter = com.example.core.network.UpcomingApiClient.moshi
+        val adapter = UpcomingApiClient.moshi
             .adapter(LocationDto::class.java).lenient()
         return adapter.fromJson(locationJson)
             ?: throw IllegalArgumentException("Invalid location JSON: $locationJson")
     }
 
     private fun locationJson(location: LocationDto): String {
-        val adapter = com.example.core.network.UpcomingApiClient.moshi
+        val adapter = UpcomingApiClient.moshi
             .adapter(LocationDto::class.java).lenient()
         return adapter.toJson(location)
     }
