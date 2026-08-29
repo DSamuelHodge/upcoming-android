@@ -13,6 +13,7 @@ import com.example.core.network.CreateBookingRequest
 import com.example.core.network.EventTypeDto
 import com.example.core.network.LocationDto
 import com.example.core.network.UpcomingApi
+import com.example.core.network.apiCall
 import com.example.core.network.isNetworkError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -54,12 +55,14 @@ class UpcomingRepository(
     // stay Room-backed, so the UI keeps rendering from cache when offline.
     // -----------------------------------------------------------------------
 
-    /** Pull event types from the API into Room. Returns true when fresh data
-     *  landed; false on network failure (cache keeps serving). */
+    /** Pull event types from the API into Room (full-replace: local leftovers
+     *  not known remotely are deleted, so stale locally-seeded ids can never
+     *  reach the server). Returns true when fresh data landed. */
     suspend fun refreshEventTypes(): Boolean = withContext(Dispatchers.IO) {
         val api = api ?: return@withContext false
         try {
-            val remote = api.getEventTypes()
+            val remote = apiCall { api.getEventTypes() }
+            val remoteIds = remote.map { it.id }.toSet()
             for (dto in remote) {
                 val existing = eventTypeDao.getEventTypeById(dto.id)
                 val entity = dto.toEntity()
@@ -68,6 +71,11 @@ class UpcomingRepository(
                 } else {
                     eventTypeDao.insertEventType(entity)
                 }
+            }
+            // Purge locally-seeded leftovers whose ids the server doesn't know.
+            val localIds = eventTypeDao.getAllEventTypesFlow().first().map { it.id }
+            for (id in localIds) {
+                if (id !in remoteIds) eventTypeDao.deleteEventTypeById(id)
             }
             true
         } catch (e: Exception) {
@@ -80,7 +88,7 @@ class UpcomingRepository(
     suspend fun refreshBookings(): Boolean = withContext(Dispatchers.IO) {
         val api = api ?: return@withContext false
         try {
-            val remote = api.getBookings()
+            val remote = apiCall { api.getBookings() }
             for (row in remote) {
                 upsertBookingRow(row)
             }
@@ -263,11 +271,13 @@ class UpcomingRepository(
         // slot-grid logic; Room only serves as fallback when the API is down.
         if (api != null) {
             try {
-                val response = api.getAvailability(
-                    eventTypeId = eventType.id,
-                    rangeStartUtc = SchedulingEngine.formatIsoUtc(rangeStartUtc),
-                    rangeEndUtc = SchedulingEngine.formatIsoUtc(rangeEndUtc)
-                )
+                val response = apiCall {
+                    api.getAvailability(
+                        eventTypeId = eventType.id,
+                        rangeStartUtc = SchedulingEngine.formatIsoUtc(rangeStartUtc),
+                        rangeEndUtc = SchedulingEngine.formatIsoUtc(rangeEndUtc)
+                    )
+                }
                 return@withContext response.slots.map { slot ->
                     OfferedSlot(
                         startUtc = slot.startUtc,
@@ -346,21 +356,23 @@ class UpcomingRepository(
             // conflict logic and Daily room minting. Local writes are only
             // used when no API client is configured.
             if (api != null) {
-                val result = api.createBooking(
-                    CreateBookingRequest(
-                        eventTypeId = eventTypeId,
-                        slotStartUtc = slotStartUtc,
-                        slotEndUtc = slotEndUtc,
-                        location = parseChosenLocation(locationJson),
-                        attendee = AttendeeWireDto(
-                            email = attendeeEmail,
-                            name = attendeeName,
-                            timezone = attendeeTimezone,
-                            phone = attendeePhone
-                        ),
-                        idempotencyKey = idempotencyKey
+                val result = apiCall {
+                    api.createBooking(
+                        CreateBookingRequest(
+                            eventTypeId = eventTypeId,
+                            slotStartUtc = slotStartUtc,
+                            slotEndUtc = slotEndUtc,
+                            location = parseChosenLocation(locationJson),
+                            attendee = AttendeeWireDto(
+                                email = attendeeEmail,
+                                name = attendeeName,
+                                timezone = attendeeTimezone,
+                                phone = attendeePhone
+                            ),
+                            idempotencyKey = idempotencyKey
+                        )
                     )
-                )
+                }
                 val createdBooking = storeRemoteBooking(result, eventType)
                 schedulePostBookingNotifications(createdBooking, eventType, attendeeName, attendeeEmail)
                 return@withContext Result.success(createdBooking)
@@ -500,14 +512,14 @@ class UpcomingRepository(
 
     /** Parses the CHOSEN-location JSON (a single object) into the wire shape. */
     private fun parseChosenLocation(locationJson: String): LocationDto {
-        val adapter = com.squareup.moshi.Moshi.Builder().build()
+        val adapter = com.example.core.network.UpcomingApiClient.moshi
             .adapter(LocationDto::class.java).lenient()
         return adapter.fromJson(locationJson)
             ?: throw IllegalArgumentException("Invalid location JSON: $locationJson")
     }
 
     private fun locationJson(location: LocationDto): String {
-        val adapter = com.squareup.moshi.Moshi.Builder().build()
+        val adapter = com.example.core.network.UpcomingApiClient.moshi
             .adapter(LocationDto::class.java).lenient()
         return adapter.toJson(location)
     }
@@ -522,7 +534,7 @@ class UpcomingRepository(
             // safe to reconcile the local cache either way.
             if (api != null) {
                 try {
-                    api.cancelBooking(com.example.core.network.CancelBookingRequest(uid = uid))
+                    apiCall { api.cancelBooking(com.example.core.network.CancelBookingRequest(uid = uid)) }
                 } catch (e: ApiException.NotFound) {
                     // fall through to local reconcile
                 }
@@ -557,7 +569,7 @@ class UpcomingRepository(
 
     suspend fun createPaymentIntent(eventTypeId: Long): Result<com.example.core.network.CreateIntentResponse> =
         withContext(Dispatchers.IO) {
-            runCatching { api!!.createPaymentIntent(com.example.core.network.CreateIntentRequest(eventTypeId)) }
+            runCatching { apiCall { api!!.createPaymentIntent(com.example.core.network.CreateIntentRequest(eventTypeId)) } }
         }
 
     /** Creates a PaymentMethod from raw card fields (tokenized client-side by
@@ -596,7 +608,7 @@ class UpcomingRepository(
     suspend fun markBookingPaid(uid: String, paymentIntentId: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
-                api!!.markBookingPaidInternal(uid, paymentIntentId)
+                apiCall { api!!.markBookingPaidInternal(uid, paymentIntentId) }
                 val booking = bookingDao.getBookingByUid(uid)
                 if (booking != null) {
                     bookingDao.updateBooking(

@@ -44,29 +44,10 @@ interface UpcomingApi {
     suspend fun markPaid(@retrofit2.http.Body body: MarkPaidRequest): MarkPaidResponse
 }
 
-/** Maps non-2xx responses onto the contract's error semantics. */
-class ErrorMappingInterceptor(private val moshi: Moshi) : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val response = chain.proceed(chain.request())
-        if (response.isSuccessful) return response
-
-        val body = response.body?.string().orEmpty()
-        val message = runCatching {
-            moshi.adapter(ApiErrorDto::class.java).lenient().fromJson(body)?.error
-        }.getOrNull()
-
-        val messageOrFallback = message ?: "HTTP ${response.code}"
-        throw when (response.code) {
-            409 -> ApiException.SlotConflict(messageOrFallback)
-            404 -> ApiException.NotFound(messageOrFallback)
-            400 -> ApiException.Validation(messageOrFallback)
-            else -> ApiException.Server(messageOrFallback)
-        }
-    }
-}
-
 object UpcomingApiClient {
-    val moshi: Moshi = Moshi.Builder().build()
+    val moshi: Moshi = Moshi.Builder()
+        .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+        .build()
 
     fun create(
         baseUrl: String = BuildConfig.UPCOMING_API_BASE_URL,
@@ -78,7 +59,6 @@ object UpcomingApiClient {
         val client = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(ErrorMappingInterceptor(moshi))
             .addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
@@ -95,6 +75,32 @@ object UpcomingApiClient {
             .build()
             .create(UpcomingApi::class.java)
     }
+}
+
+/**
+ * Wraps a suspend API call so failures surface as [ApiException] **inside the
+ * coroutine** instead of on OkHttp's dispatcher thread. Throwing non-IO
+ * exceptions from an OkHttp interceptor escapes Retrofit's translation and
+ * kills the process; here Retrofit's HttpException/IOException are translated
+ * safely at the call site.
+ */
+suspend fun <T> apiCall(
+    block: suspend () -> T
+): T = try {
+    block()
+} catch (e: retrofit2.HttpException) {
+    val body = e.response()?.errorBody()?.string().orEmpty()
+    val message = runCatching {
+        UpcomingApiClient.moshi.adapter(ApiErrorDto::class.java).lenient().fromJson(body)?.error
+    }.getOrNull() ?: "HTTP ${e.code()}"
+    throw when (e.code()) {
+        409 -> ApiException.SlotConflict(message)
+        404 -> ApiException.NotFound(message)
+        400 -> ApiException.Validation(message)
+        else -> ApiException.Server(message)
+    }
+} catch (e: IOException) {
+    throw ApiException.Network(e)
 }
 
 /** True when the failure means "the API was unreachable" — callers use this

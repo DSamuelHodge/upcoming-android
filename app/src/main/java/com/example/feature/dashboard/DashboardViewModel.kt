@@ -29,6 +29,9 @@ class DashboardViewModel(
     init {
         viewModelScope.launch {
             repository.seedInitialDataIfEmpty()
+            // Network-first sync: API → Room. Room keeps serving if offline.
+            runCatching { repository.refreshEventTypes() }
+            runCatching { repository.refreshBookings() }
             loadDashboardData()
         }
     }
