@@ -185,19 +185,75 @@ class UpcomingRepository(
             updateProfile(metadata = current.copy(defaultLocation = location))
         }
 
+    /** Booking defaults: store/replace one configured location per type
+     *  (each with its own label + value) and/or pick the default type. */
+    suspend fun updateLocationDefault(
+        type: String,
+        location: LocationDto?,
+        makeDefault: Boolean = false
+    ): User = withContext(Dispatchers.IO) {
+        val current = currentMetadata()
+        val map = current.locations ?: com.example.core.network.LocationsMapDto()
+        val updatedMap = when (type) {
+            "integrations:daily" -> map.copy(daily = location)
+            "inPerson" -> map.copy(inPerson = location)
+            "userPhone" -> map.copy(userPhone = location)
+            else -> map
+        }
+        updateProfile(
+            metadata = current.copy(
+                locations = updatedMap,
+                defaultLocationType = if (makeDefault && location != null) type else current.defaultLocationType
+            )
+        )
+    }
+
+    suspend fun setDefaultLocationType(type: String): User =
+        withContext(Dispatchers.IO) {
+            val current = currentMetadata()
+            updateProfile(metadata = current.copy(defaultLocationType = type))
+        }
+
     suspend fun currentTimeFormatPref(): String? =
         runCatching { currentMetadata().prefs?.timeFormat }.getOrNull()
 
     /** User-level default location (from metadata) for prefilling new event
-     *  types' location menus; null when none is set. */
-    suspend fun defaultLocation(): LocationDto? =
-        runCatching { currentMetadata().defaultLocation }.getOrNull()
+     *  types' location menus; null when none is set. Prefers the per-type
+     *  defaults map, falls back to the legacy single defaultLocation field. */
+    suspend fun defaultLocation(): LocationDto? = runCatching {
+        val meta = currentMetadata()
+        meta.defaultLocationType?.let { type -> meta.locations?.entryFor(type) } ?: meta.defaultLocation
+    }.getOrNull()
+
+    // --- Credentials (bring-your-own API keys / private URLs) ---------------
+
+    suspend fun credentialHints(): List<com.example.core.network.CredentialHintDto> =
+        withContext(Dispatchers.IO) {
+            val api = api ?: return@withContext emptyList()
+            try {
+                apiCall { api.getCredentials() }
+            } catch (e: Exception) {
+                if (!e.isNetworkError()) throw e
+                emptyList()
+            }
+        }
+
+    suspend fun putCredential(type: String, value: String): com.example.core.network.CredentialHintDto =
+        withContext(Dispatchers.IO) {
+            val api = api ?: throw ApiException.Server("offline")
+            apiCall { api.putCredential(type, com.example.core.network.PutCredentialRequest(value)) }
+        }
+
+    suspend fun deleteCredential(type: String) = withContext(Dispatchers.IO) {
+        val api = api ?: throw ApiException.Server("offline")
+        apiCall { api.deleteCredential(type) }
+    }
 
     suspend fun setTimeFormatPref(timeFormat: String): User =
         updateProfile(metadata = currentMetadata().copy(prefs = UserPrefsDto(timeFormat)))
 
     private suspend fun currentMetadata(): UserMetadataDto {
-        val user = userDao.getUserById(1)
+        val user = userDao.getUserById(primaryUserId.value)
         val raw = user?.metadata ?: "{}"
         return runCatching {
             UpcomingApiClient.moshi

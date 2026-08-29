@@ -19,7 +19,10 @@ data class SettingsUiState(
     val scheduleName: String? = null,
     val scheduleTimezone: String? = null,
     val defaultLocation: LocationDto? = null,
+    val locations: com.example.core.network.LocationsMapDto = com.example.core.network.LocationsMapDto(),
+    val defaultLocationType: String? = null,
     val timeFormat: String = "12h",
+    val credentialHints: Map<String, String> = emptyMap(),
     val saving: Boolean = false,
     val error: String? = null,
     val savedTick: Long = 0
@@ -46,9 +49,18 @@ class SettingsViewModel(private val repository: UpcomingRepository) : ViewModel(
                             scheduleName = schedule.name.ifBlank { "Working Hours" },
                             scheduleTimezone = schedule.timezone,
                             defaultLocation = metadata.defaultLocation,
+                            locations = metadata.locations ?: com.example.core.network.LocationsMapDto(),
+                            defaultLocationType = metadata.defaultLocationType,
                             timeFormat = metadata.prefs?.timeFormat ?: "12h"
                         )
                     }
+                }
+            }
+        }
+        viewModelScope.launch {
+            runCatching {
+                _uiState.update { state ->
+                    state.copy(credentialHints = repository.credentialHints().associate { it.type to it.hint })
                 }
             }
         }
@@ -68,6 +80,34 @@ class SettingsViewModel(private val repository: UpcomingRepository) : ViewModel(
 
     fun setDefaultLocation(location: LocationDto?) {
         viewModelScope.launch { runSave { repository.updateDefaultLocation(location) } }
+    }
+
+    /** Store/replace one configured location (its own label + value) and
+     *  optionally make it the default. */
+    fun saveLocationDefault(type: String, location: LocationDto?, makeDefault: Boolean = false) {
+        viewModelScope.launch { runSave { repository.updateLocationDefault(type, location, makeDefault) } }
+    }
+
+    fun setDefaultLocationType(type: String) {
+        viewModelScope.launch { runSave { repository.setDefaultLocationType(type) } }
+    }
+
+    fun putCredential(type: String, value: String) {
+        viewModelScope.launch {
+            runSave {
+                val hint = repository.putCredential(type, value)
+                _uiState.update { it.copy(credentialHints = it.credentialHints + (hint.type to hint.hint)) }
+            }
+        }
+    }
+
+    fun deleteCredential(type: String) {
+        viewModelScope.launch {
+            runSave {
+                repository.deleteCredential(type)
+                _uiState.update { it.copy(credentialHints = it.credentialHints - type) }
+            }
+        }
     }
 
     private suspend fun runSave(block: suspend () -> Unit) {

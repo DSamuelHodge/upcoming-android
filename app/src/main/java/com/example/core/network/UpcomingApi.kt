@@ -51,6 +51,18 @@ interface UpcomingApi {
 
     @retrofit2.http.PATCH("me/schedule")
     suspend fun patchSchedule(@retrofit2.http.Body body: PatchScheduleRequest): MeResponseDto
+
+    @retrofit2.http.GET("me/credentials")
+    suspend fun getCredentials(): List<CredentialHintDto>
+
+    @retrofit2.http.PUT("me/credentials/{type}")
+    suspend fun putCredential(
+        @retrofit2.http.Path("type") type: String,
+        @retrofit2.http.Body body: PutCredentialRequest
+    ): CredentialHintDto
+
+    @retrofit2.http.DELETE("me/credentials/{type}")
+    suspend fun deleteCredential(@retrofit2.http.Path("type") type: String): DeleteCredentialResponse
 }
 
 object UpcomingApiClient {

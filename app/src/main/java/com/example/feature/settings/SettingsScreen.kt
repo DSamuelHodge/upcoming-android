@@ -17,19 +17,58 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.core.designsystem.*
 import com.example.core.network.LocationDto
+import com.example.core.network.LocationsMapDto
 import com.example.ui.theme.*
 
-// Curated IANA list — the common zones a host actually picks from.
+// Comprehensive IANA list — the zones a host actually picks from, ordered
+// west→east: Americas, Europe, Africa/Middle East, Asia, Pacific, UTC.
 private val COMMON_TIMEZONES = listOf(
-    "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-    "America/Phoenix", "America/Sao_Paulo", "Europe/London", "Europe/Paris",
-    "Europe/Berlin", "Europe/Madrid", "Europe/Amsterdam", "Africa/Cairo",
-    "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore", "Asia/Tokyo", "Asia/Shanghai",
-    "Australia/Sydney", "Pacific/Auckland", "UTC"
+    "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles", "America/Vancouver",
+    "America/Phoenix", "America/Denver", "America/Edmonton", "America/Mexico_City",
+    "America/Chicago", "America/Winnipeg", "America/New_York", "America/Toronto",
+    "America/Havana", "America/Bogota", "America/Lima", "America/Caracas",
+    "America/Santiago", "America/Sao_Paulo", "America/Argentina/Buenos_Aires", "America/Montevideo",
+    "UTC", "Atlantic/Reykjavik", "Europe/London", "Europe/Dublin",
+    "Europe/Lisbon", "Europe/Madrid", "Europe/Paris", "Europe/Brussels",
+    "Europe/Amsterdam", "Europe/Berlin", "Europe/Zurich", "Europe/Vienna",
+    "Europe/Copenhagen", "Europe/Oslo", "Europe/Stockholm", "Europe/Warsaw",
+    "Europe/Prague", "Europe/Budapest", "Europe/Rome", "Europe/Athens",
+    "Europe/Helsinki", "Europe/Stockholm", "Europe/Bucharest", "Europe/Kyiv",
+    "Europe/Istanbul", "Europe/Moscow", "Africa/Casablanca", "Africa/Lagos",
+    "Africa/Cairo", "Africa/Johannesburg", "Africa/Nairobi", "Asia/Jerusalem",
+    "Asia/Riyadh", "Asia/Baghdad", "Asia/Tehran", "Asia/Dubai",
+    "Asia/Karachi", "Asia/Kolkata", "Asia/Kathmandu", "Asia/Dhaka",
+    "Asia/Bangkok", "Asia/Jakarta", "Asia/Singapore", "Asia/Hong_Kong",
+    "Asia/Shanghai", "Asia/Taipei", "Asia/Manila", "Asia/Seoul",
+    "Asia/Tokyo", "Australia/Perth", "Australia/Adelaide", "Australia/Sydney",
+    "Australia/Melbourne", "Australia/Brisbane", "Pacific/Auckland", "Pacific/Fiji"
+).distinct()
+
+private const val TYPE_DAILY = "integrations:daily"
+private const val TYPE_IN_PERSON = "inPerson"
+private const val TYPE_PHONE = "userPhone"
+
+// Bring-your-own integration credentials (stored AES-256-GCM-encrypted
+// server-side; the app only ever sees masked hints back).
+private data class CredentialSpec(
+    val type: String,
+    val label: String,
+    val description: String,
+    val icon: ImageVector,
+    val secret: Boolean
+)
+
+private val CREDENTIAL_SPECS = listOf(
+    CredentialSpec("daily_api_key", "Daily.co API Key", "Mint private video rooms with your own Daily account", Icons.Outlined.Videocam, secret = true),
+    CredentialSpec("ical_url", "iCal Feed URL", "Read external calendars over a private iCal (.ics) link", Icons.Outlined.CalendarMonth, secret = false),
+    CredentialSpec("caldav_url", "CalDAV Server URL", "Two-way sync with a CalDAV calendar server", Icons.Outlined.EventRepeat, secret = false),
+    CredentialSpec("stripe_secret_key", "Stripe Secret Key", "Collect booking payments with your own Stripe account", Icons.Outlined.CreditCard, secret = true)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +90,8 @@ fun SettingsScreen(
 
     var showProfileEditor by remember { mutableStateOf(false) }
     var showTimezonePicker by remember { mutableStateOf(false) }
-    var showLocationPicker by remember { mutableStateOf(false) }
+    var editingLocationType by remember { mutableStateOf<String?>(null) }
+    var editingCredential by remember { mutableStateOf<CredentialSpec?>(null) }
 
     Scaffold(
         topBar = {
@@ -142,16 +182,41 @@ fun SettingsScreen(
                 }
             }
 
-            // 3. Default location ----------------------------------------------
+            // 3. Booking defaults ----------------------------------------------
             item {
                 SectionHeader("BOOKING DEFAULTS")
                 UpcomingCard {
-                    SettingRow(
+                    Text(
+                        text = "Configure each location, then pick the default used for new event types.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    LocationDefaultRow(
+                        icon = Icons.Outlined.Videocam,
+                        label = "Video",
+                        entry = state.locations.daily,
+                        isDefault = state.defaultLocationType == TYPE_DAILY,
+                        onClick = { editingLocationType = TYPE_DAILY },
+                        onMakeDefault = { viewModel.setDefaultLocationType(TYPE_DAILY) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
+                    LocationDefaultRow(
                         icon = Icons.Outlined.LocationOn,
-                        label = "Default location",
-                        description = "Prefilled when you create new event types",
-                        value = state.defaultLocation?.let { locationLabel(it) } ?: "None set",
-                        onClick = { showLocationPicker = true }
+                        label = "In person",
+                        entry = state.locations.inPerson,
+                        isDefault = state.defaultLocationType == TYPE_IN_PERSON,
+                        onClick = { editingLocationType = TYPE_IN_PERSON },
+                        onMakeDefault = { viewModel.setDefaultLocationType(TYPE_IN_PERSON) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
+                    LocationDefaultRow(
+                        icon = Icons.Outlined.Call,
+                        label = "Phone",
+                        entry = state.locations.userPhone,
+                        isDefault = state.defaultLocationType == TYPE_PHONE,
+                        onClick = { editingLocationType = TYPE_PHONE },
+                        onMakeDefault = { viewModel.setDefaultLocationType(TYPE_PHONE) }
                     )
                 }
             }
@@ -171,36 +236,30 @@ fun SettingsScreen(
                 }
             }
 
-            // 5. Integrations ---------------------------------------------------
+            // 5. Integrations & credentials -------------------------------------
             item {
                 SectionHeader("INTEGRATIONS")
                 UpcomingCard {
-                    SettingRow(
-                        icon = Icons.Outlined.Videocam,
-                        label = "Daily.co Video",
-                        description = "Video rooms minted per booking, server-side",
-                        value = "Active",
-                        valueTint = SemanticSuccess,
-                        onClick = null
+                    Text(
+                        text = "Store your own API keys and private URLs — encrypted server-side, shown masked here only.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
-                    SettingRow(
-                        icon = Icons.Outlined.CalendarMonth,
-                        label = "Calendar Connections",
-                        description = "Google / Outlook two-way sync",
-                        value = "Coming soon",
-                        valueTint = MutedText,
-                        onClick = null
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
-                    SettingRow(
-                        icon = Icons.Outlined.CreditCard,
-                        label = "Payments",
-                        description = "Collect payment when invitees book",
-                        value = "Test mode",
-                        valueTint = AccentTeal,
-                        onClick = null
-                    )
+                    CREDENTIAL_SPECS.forEachIndexed { index, spec ->
+                        if (index > 0) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
+                        }
+                        val hint = state.credentialHints[spec.type]
+                        SettingRow(
+                            icon = spec.icon,
+                            label = spec.label,
+                            description = spec.description,
+                            value = hint ?: "Not set",
+                            valueTint = if (hint != null) SemanticSuccess else MutedText,
+                            onClick = { editingCredential = spec }
+                        )
+                    }
                 }
             }
         }
@@ -228,13 +287,36 @@ fun SettingsScreen(
             }
         )
     }
-    if (showLocationPicker) {
-        DefaultLocationDialog(
-            current = state.defaultLocation,
-            onDismiss = { showLocationPicker = false },
-            onSave = { loc ->
-                viewModel.setDefaultLocation(loc)
-                showLocationPicker = false
+    editingLocationType?.let { type ->
+        LocationEditDialog(
+            type = type,
+            current = state.locations.entryFor(type),
+            isDefault = state.defaultLocationType == type,
+            saving = state.saving,
+            onDismiss = { editingLocationType = null },
+            onSave = { location, makeDefault ->
+                viewModel.saveLocationDefault(type, location, makeDefault)
+                editingLocationType = null
+            },
+            onMakeDefault = {
+                viewModel.setDefaultLocationType(type)
+                editingLocationType = null
+            }
+        )
+    }
+    editingCredential?.let { spec ->
+        CredentialDialog(
+            spec = spec,
+            currentHint = state.credentialHints[spec.type],
+            saving = state.saving,
+            onDismiss = { editingCredential = null },
+            onSave = { value ->
+                viewModel.putCredential(spec.type, value)
+                editingCredential = null
+            },
+            onRemove = {
+                viewModel.deleteCredential(spec.type)
+                editingCredential = null
             }
         )
     }
@@ -291,6 +373,56 @@ private fun TimeFormatToggle(selected: String, onSelect: (String) -> Unit) {
             }
         }
     }
+}
+
+/** One booking-defaults row: label + current value summary, tap to edit the
+ *  entry, trailing radio to make it the default. */
+@Composable
+private fun LocationDefaultRow(
+    icon: ImageVector,
+    label: String,
+    entry: LocationDto?,
+    isDefault: Boolean,
+    onClick: () -> Unit,
+    onMakeDefault: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = UpcomingTokens.BrandPrimary, modifier = Modifier.size(22.dp))
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clip(UpcomingTokens.RadiusMedium)
+                .clickable(onClick = onClick)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label + if (entry?.label?.isNotBlank() == true) " — ${entry.label}" else "",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = entry?.let { locationSummary(it) } ?: "Not configured — tap to set",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (entry != null) MaterialTheme.colorScheme.onSurfaceVariant else MutedText
+                )
+            }
+        }
+        RadioButton(selected = isDefault, onClick = onMakeDefault, colors = RadioButtonDefaults.colors(selectedColor = UpcomingTokens.BrandPrimary))
+    }
+}
+
+private fun locationSummary(location: LocationDto): String = when (location.type) {
+    TYPE_DAILY -> location.url?.ifBlank { null }?.let { "Room: $it" } ?: "Daily.co room (minted per booking)"
+    TYPE_IN_PERSON -> location.address?.ifBlank { null }?.let { "Address: $it" } ?: "In-person meeting"
+    TYPE_PHONE -> location.phone?.ifBlank { null }?.let { "Phone: $it" } ?: "Phone call"
+    else -> location.type
 }
 
 @Composable
@@ -379,35 +511,49 @@ private fun ProfileEditDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimezonePickerDialog(
     current: String,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit
 ) {
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query) {
+        if (query.isBlank()) COMMON_TIMEZONES
+        else COMMON_TIMEZONES.filter { it.contains(query.trim(), ignoreCase = true) }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Default timezone") },
         text = {
-            LazyColumn(modifier = Modifier.height(320.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                items(COMMON_TIMEZONES.size) { index ->
-                    val tz = COMMON_TIMEZONES[index]
-                    val isSelected = tz == current
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(UpcomingTokens.RadiusMedium)
-                            .background(if (isSelected) UpcomingTokens.CreamStrongBg else androidx.compose.ui.graphics.Color.Transparent)
-                            .clickable { onSelect(tz) }
-                            .padding(horizontal = 10.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = tz,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = DmMonoFontFamily),
-                            color = if (isSelected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.onSurface
-                        )
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search zones…") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.height(320.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    items(filtered.size) { index ->
+                        val tz = filtered[index]
+                        val isSelected = tz == current
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(UpcomingTokens.RadiusMedium)
+                                .background(if (isSelected) UpcomingTokens.CreamStrongBg else androidx.compose.ui.graphics.Color.Transparent)
+                                .clickable { onSelect(tz) }
+                                .padding(horizontal = 10.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = tz,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = DmMonoFontFamily),
+                                color = if (isSelected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -417,95 +563,163 @@ private fun TimezonePickerDialog(
     )
 }
 
+/** Edit one booking-default location: its own Label + value (room URL,
+ *  address, or phone), with an explicit "set as default" action. */
 @Composable
-private fun DefaultLocationDialog(
+private fun LocationEditDialog(
+    type: String,
     current: LocationDto?,
+    isDefault: Boolean,
+    saving: Boolean,
     onDismiss: () -> Unit,
-    onSave: (LocationDto?) -> Unit
+    onSave: (LocationDto?, makeDefault: Boolean) -> Unit,
+    onMakeDefault: () -> Unit
 ) {
-    var selectedType by remember {
-        mutableStateOf(current?.type ?: "integrations:daily")
+    var label by remember(type) { mutableStateOf(current?.label ?: "") }
+    var value by remember(type) {
+        mutableStateOf(
+            when (type) {
+                TYPE_DAILY -> current?.url ?: ""
+                TYPE_IN_PERSON -> current?.address ?: ""
+                else -> current?.phone ?: ""
+            }
+        )
     }
-    var label by remember { mutableStateOf(current?.label ?: "") }
-    var url by remember { mutableStateOf(current?.url ?: "") }
-    var address by remember { mutableStateOf(current?.address ?: "") }
-    var phone by remember { mutableStateOf(current?.phone ?: "") }
+    var makeDefault by remember(type) { mutableStateOf(isDefault) }
+    val typeDisplay = when (type) {
+        TYPE_DAILY -> "Video (Daily.co)"
+        TYPE_IN_PERSON -> "In person"
+        else -> "Phone"
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Default location") },
+        title = { Text(typeDisplay) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(
-                        "integrations:daily" to "Video",
-                        "inPerson" to "In person",
-                        "userPhone" to "Phone"
-                    ).forEach { (type, display) ->
-                        val isSelected = selectedType == type
-                        Surface(
-                            shape = UpcomingTokens.RadiusMedium,
-                            color = if (isSelected) UpcomingTokens.BrandPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.clickable { selectedType = type }
-                        ) {
-                            Text(
-                                text = display,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) OnPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-                OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Label") }, singleLine = true)
-                when (selectedType) {
-                    "integrations:daily" -> OutlinedTextField(
-                        value = url, onValueChange = { url = it },
-                        label = { Text("Permanent room URL (optional — blank mints per-booking rooms)") }, singleLine = true
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    label = { Text("Label") },
+                    placeholder = { Text(if (type == TYPE_DAILY) "My Daily Room" else if (type == TYPE_IN_PERSON) "Office" else "Cell") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(when (type) {
+                        TYPE_DAILY -> "Room URL (optional — blank mints per-booking rooms)"
+                        TYPE_IN_PERSON -> "Address"
+                        else -> "Phone number"
+                    }) },
+                    singleLine = true
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(UpcomingTokens.RadiusMedium)
+                        .clickable { makeDefault = !makeDefault }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = makeDefault,
+                        onClick = { makeDefault = true },
+                        colors = RadioButtonDefaults.colors(selectedColor = UpcomingTokens.BrandPrimary)
                     )
-                    "inPerson" -> OutlinedTextField(
-                        value = address, onValueChange = { address = it },
-                        label = { Text("Address") }, singleLine = true
-                    )
-                    "userPhone" -> OutlinedTextField(
-                        value = phone, onValueChange = { phone = it },
-                        label = { Text("Phone number") }, singleLine = true
-                    )
+                    Text("Use as default location", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val location = when (selectedType) {
-                    "integrations:daily" -> LocationDto(
-                        type = selectedType,
-                        label = label.ifBlank { "Video (Daily.co)" },
-                        url = url.trim().ifBlank { null }
-                    )
-                    "inPerson" -> LocationDto(
-                        type = selectedType,
-                        label = label.ifBlank { "In person" },
-                        address = address.trim().ifBlank { null }
-                    )
-                    else -> LocationDto(
-                        type = selectedType,
-                        label = label.ifBlank { "Phone call" },
-                        phone = phone.trim().ifBlank { null }
-                    )
+            TextButton(
+                enabled = !saving,
+                onClick = {
+                    val location = when (type) {
+                        TYPE_DAILY -> LocationDto(
+                            type = type,
+                            label = label.trim().ifBlank { "Video (Daily.co)" },
+                            url = value.trim().ifBlank { null }
+                        )
+                        TYPE_IN_PERSON -> LocationDto(
+                            type = type,
+                            label = label.trim().ifBlank { "In person" },
+                            address = value.trim().ifBlank { null }
+                        )
+                        else -> LocationDto(
+                            type = type,
+                            label = label.trim().ifBlank { "Phone call" },
+                            phone = value.trim().ifBlank { null }
+                        )
+                    }
+                    onSave(location, makeDefault)
                 }
-                onSave(location)
-            }) { Text("Save") }
+            ) { Text(if (saving) "Saving…" else "Save") }
         },
         dismissButton = {
-            TextButton(onClick = { onSave(null) }) { Text("Remove default") }
+            Row {
+                if (!isDefault && current != null) {
+                    TextButton(onClick = onMakeDefault) { Text("Make default") }
+                }
+                TextButton(onClick = { onSave(null, false) }) { Text("Clear") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
         }
     )
 }
 
-private fun locationLabel(location: LocationDto): String =
-    location.label ?: when (location.type) {
-        "integrations:daily" -> "Video (Daily.co)"
-        "inPerson" -> location.address ?: "In person"
-        "userPhone" -> location.phone ?: "Phone call"
-        else -> location.type
-    }
+/** Add/store/remove a bring-your-own credential. Keys render masked; URLs
+ *  render as plain text. The server stores them encrypted and only ever
+ *  returns a "••••1234"-style hint back. */
+@Composable
+private fun CredentialDialog(
+    spec: CredentialSpec,
+    currentHint: String?,
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    onRemove: () -> Unit
+) {
+    var value by remember(spec.type) { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(spec.label) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = spec.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (currentHint != null) {
+                    Text(
+                        text = "Stored: $currentHint",
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = DmMonoFontFamily),
+                        color = SemanticSuccess
+                    )
+                }
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(if (currentHint != null) "Replace with new value" else if (spec.secret) "Paste secret value" else "Paste URL") },
+                    visualTransformation = if (spec.secret) PasswordVisualTransformation() else VisualTransformation.None,
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !saving && value.isNotBlank(),
+                onClick = { onSave(value.trim()) }
+            ) { Text(if (saving) "Saving…" else "Save") }
+        },
+        dismissButton = {
+            Row {
+                if (currentHint != null) {
+                    TextButton(onClick = onRemove) { Text("Remove", color = SemanticError) }
+                }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        }
+    )
+}

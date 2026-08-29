@@ -183,10 +183,28 @@ data class ApiErrorDto(val error: String? = null)
 @JsonClass(generateAdapter = false)
 data class UserMetadataDto(
     val defaultLocation: LocationDto? = null,
+    val locations: LocationsMapDto? = null,
+    val defaultLocationType: String? = null,
     val prefs: UserPrefsDto? = null,
     val role: String? = null,
     val company: String? = null
 )
+
+// One configured location per type (each with its own label + value) for
+// booking defaults; keys use the wire name "integrations:daily".
+@JsonClass(generateAdapter = false)
+data class LocationsMapDto(
+    @Json(name = "integrations:daily") val daily: LocationDto? = null,
+    val inPerson: LocationDto? = null,
+    val userPhone: LocationDto? = null
+) {
+    fun entryFor(type: String): LocationDto? = when (type) {
+        "integrations:daily" -> daily
+        "inPerson" -> inPerson
+        "userPhone" -> userPhone
+        else -> null
+    }
+}
 
 @JsonClass(generateAdapter = false)
 data class UserPrefsDto(
@@ -227,3 +245,20 @@ data class PatchScheduleRequest(
     val name: String? = null,
     val timezone: String? = null
 )
+
+// ---------------------------------------------------------------------------
+// User credentials (/me/credentials) — masked hints only; plaintext values
+// are write-only from the client's perspective.
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class CredentialHintDto(
+    val type: String,
+    val hint: String
+)
+
+@JsonClass(generateAdapter = false)
+data class PutCredentialRequest(val value: String)
+
+@JsonClass(generateAdapter = false)
+data class DeleteCredentialResponse(val deleted: String? = null)
