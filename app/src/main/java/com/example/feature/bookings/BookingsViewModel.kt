@@ -98,13 +98,4 @@ class BookingsViewModel(
             onCompleted()
         }
     }
-
-    fun triggerTestReminder(booking: Booking, eventType: EventType?, attendee: Attendee?) {
-        NotificationAndReminderManager.triggerFcmNotification(
-            context = context,
-            title = "Reminder: ${eventType?.title ?: "Meeting"}",
-            body = "Meeting with ${attendee?.name ?: "Guest"} is starting soon.",
-            bookingUid = booking.uid
-        )
-    }
 }

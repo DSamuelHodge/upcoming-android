@@ -120,6 +120,7 @@ class UpcomingRepository(
             val me = apiCall { api.getMe() }
             storeRemoteUser(me)
             primaryUserId.value = me.id
+            me.metadata.prefs?.reminderOffsets?.let { hydrateReminderOffsets(it) }
             true
         } catch (e: Exception) {
             if (!e.isNetworkError()) throw e
@@ -250,7 +251,82 @@ class UpcomingRepository(
     }
 
     suspend fun setTimeFormatPref(timeFormat: String): User =
-        updateProfile(metadata = currentMetadata().copy(prefs = UserPrefsDto(timeFormat)))
+        updateProfile(
+            metadata = currentMetadata().copy(
+                prefs = (currentMetadata().prefs ?: UserPrefsDto(timeFormat)).copy(timeFormat = timeFormat)
+            )
+        )
+
+    // --- Reminder settings (DataStore + metadata sync + alarm re-arm) -------
+
+    /** Reminder settings change: persist device-locally (instant), re-arm all
+     *  alarms for upcoming bookings, then best-effort sync the offsets into
+     *  users.metadata.prefs so they follow the account across reinstalls. */
+    suspend fun updateReminderSettings(enabled: Boolean, offsets: List<Int>): Boolean =
+        withContext(Dispatchers.IO) {
+            val normalized = offsets.filter { it in 1..10080 }.distinct().sorted().take(5)
+                .ifEmpty { com.example.core.prefs.DEFAULT_REMINDER_OFFSETS }
+            userPreferences.setReminderSettings(enabled, normalized)
+            rescheduleAllReminders()
+            try {
+                val current = currentMetadata()
+                val prefs = (current.prefs ?: UserPrefsDto("12h")).copy(reminderOffsets = normalized)
+                updateProfile(metadata = current.copy(prefs = prefs))
+                true
+            } catch (e: Exception) {
+                if (!e.isNetworkError()) throw e
+                false
+            }
+        }
+
+    /** Server → device: apply reminder offsets carried in metadata.prefs. */
+    private suspend fun hydrateReminderOffsets(offsets: List<Int>) {
+        if (offsets.isEmpty()) return
+        userPreferences.setReminderSettings(
+            userPreferences.notificationPrefs.first().remindersEnabled,
+            offsets
+        )
+    }
+
+    /** Cancel + re-arm every alarm for upcoming bookings under the current
+     *  reminder settings (called after settings change or alarm-affecting
+     *  data changes). */
+    suspend fun rescheduleAllReminders() = withContext(Dispatchers.IO) {
+        val prefs = userPreferences.notificationPrefs.first()
+        val upcoming = bookingDao.getUpcomingBookingsFlow().first()
+        for (entity in upcoming) {
+            val booking = entity.toDomain()
+            NotificationAndReminderManager.cancelBookingReminders(
+                context, booking.uid,
+                (prefs.reminderOffsets + com.example.core.prefs.REMINDER_PRESETS + listOf(15)).distinct()
+            )
+            if (!prefs.remindersEnabled) continue
+            val eventType = eventTypeDao.getEventTypeById(entity.eventTypeId)?.toDomain() ?: continue
+            val attendee = bookingDao.getAttendeeForBooking(entity.id)?.name
+            NotificationAndReminderManager.scheduleBookingReminders(
+                context = context,
+                booking = booking,
+                eventType = eventType,
+                attendeeName = attendee,
+                offsetsMinutes = prefs.reminderOffsets
+            )
+        }
+    }
+
+    // Device-local notification toggles (push + sound/vibration).
+
+    val notificationPrefs: Flow<com.example.core.prefs.NotificationPrefs>
+        get() = userPreferences.notificationPrefs
+
+    suspend fun setPushAlertsEnabled(enabled: Boolean) =
+        userPreferences.setPushAlertsEnabled(enabled)
+
+    /** Sound & vibration reconfigures the notification channels, which is
+     *  where Android actually applies it (per-toggle, not per-notification). */
+    suspend fun setSoundVibrationEnabled(enabled: Boolean) {
+        userPreferences.setSoundVibrateEnabled(enabled)
+        NotificationAndReminderManager.setupChannels(context, enabled)
+    }
 
     private suspend fun currentMetadata(): UserMetadataDto {
         val user = userDao.getUserById(primaryUserId.value)
@@ -603,32 +679,34 @@ class UpcomingRepository(
         attendeeEmail: String
     ) {
         val prefs = userPreferences.notificationPrefs.first()
-        // Schedule exact alarm reminder 15 mins prior (honors the device
-        // notification toggles from Settings → Notifications).
-        if (prefs.tenMinReminderEnabled) {
-            NotificationAndReminderManager.scheduleExactAlarm(
+        // One exact alarm per configured reminder offset (honors the device
+        // reminder settings from Settings → Notifications).
+        if (prefs.remindersEnabled) {
+            NotificationAndReminderManager.scheduleBookingReminders(
                 context = context,
                 booking = booking,
                 eventType = eventType,
                 attendeeName = attendeeName,
-                reminderMinutesBefore = 15
+                offsetsMinutes = prefs.reminderOffsets
             )
 
-            // Record reminder in DB
-            val reminderTriggerTimeMs =
-                SchedulingEngine.parseIsoUtc(booking.startTimeUtc).time - (15 * 60 * 1000L)
-            reminderDao.insertReminder(
-                ReminderEntity(
-                    bookingId = booking.id,
-                    type = "exact_alarm",
-                    triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(reminderTriggerTimeMs)),
-                    title = "Upcoming: ${eventType.title}",
-                    body = "Meeting with ${attendeeName ?: attendeeEmail} starting in 15 minutes",
-                    status = "scheduled",
-                    isFired = false,
-                    createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
+            // Record one reminder row per offset (bookkeeping for the
+            // reminders list; AlarmManager is the actual trigger).
+            val startMs = SchedulingEngine.parseIsoUtc(booking.startTimeUtc).time
+            for (offset in prefs.reminderOffsets) {
+                reminderDao.insertReminder(
+                    ReminderEntity(
+                        bookingId = booking.id,
+                        type = "exact_alarm",
+                        triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(startMs - (offset * 60 * 1000L))),
+                        title = "Upcoming: ${eventType.title}",
+                        body = "Meeting with ${attendeeName ?: attendeeEmail} starting in ${NotificationAndReminderManager.formatOffset(offset)}",
+                        status = "scheduled",
+                        isFired = false,
+                        createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
+                    )
                 )
-            )
+            }
         }
 
         // Trigger simulated real-time FCM notification
@@ -725,8 +803,13 @@ class UpcomingRepository(
             val nowUtc = SchedulingEngine.formatIsoUtc(Date())
             bookingDao.cancelBookingByUid(uid, nowUtc)
 
-            // Cancel alarm
-            NotificationAndReminderManager.cancelAlarm(context, uid)
+            // Cancel every alarm armed for this booking (superset of offsets
+            // that may have been used when it was created).
+            NotificationAndReminderManager.cancelBookingReminders(
+                context, uid,
+                (userPreferences.notificationPrefs.first().reminderOffsets +
+                    com.example.core.prefs.REMINDER_PRESETS + listOf(15)).distinct()
+            )
             reminderDao.cancelRemindersForBooking(booking.id)
 
             // Trigger FCM cancellation push
@@ -992,14 +1075,15 @@ class UpcomingRepository(
             )
         )
 
-        // Add 1 reminder
+        // Demo reminder row (bookkeeping only — real reminders arm via
+        // schedulePostBookingNotifications)
         reminderDao.insertReminder(
             ReminderEntity(
                 bookingId = b1Id,
                 type = "exact_alarm",
                 triggerTimeUtc = booking1Start,
                 title = "Upcoming: 30 Min Product Walkthrough",
-                body = "Meeting with Jordan Taylor starts in 15 minutes.",
+                body = "Meeting with Jordan Taylor starts in ${NotificationAndReminderManager.formatOffset(15)}.",
                 status = "scheduled",
                 isFired = false,
                 createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())

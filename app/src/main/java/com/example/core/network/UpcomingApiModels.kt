@@ -208,7 +208,10 @@ data class LocationsMapDto(
 
 @JsonClass(generateAdapter = false)
 data class UserPrefsDto(
-    val timeFormat: String? = null
+    val timeFormat: String? = null,
+    // Pre-meeting reminder lead times in minutes (server normalizes to
+    // sorted-ascending, max 5).
+    val reminderOffsets: List<Int>? = null
 )
 
 @JsonClass(generateAdapter = false)

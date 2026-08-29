@@ -40,6 +40,7 @@ import com.example.feature.eventtypes.EventTypeEditorScreen
 import com.example.feature.eventtypes.EventTypeListScreen
 import com.example.feature.eventtypes.EventTypesViewModel
 import com.example.feature.notifications.NotificationsScreen
+import com.example.feature.notifications.NotificationsViewModel
 import com.example.feature.settings.SettingsScreen
 import com.example.feature.settings.SettingsViewModel
 import com.example.ui.theme.*
@@ -248,8 +249,9 @@ fun UpcomingNavHost(
 
             // 9. Notifications & Alarms Center (nested under Settings)
             composable(UpcomingDestinations.NOTIFICATIONS) {
+                val viewModel = rememberViewModel { NotificationsViewModel(repository) }
                 NotificationsScreen(
-                    repository = repository,
+                    viewModel = viewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

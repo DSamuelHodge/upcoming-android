@@ -65,7 +65,7 @@ object NotificationAndReminderManager {
     private const val CHANNEL_PUSH_ID = "upcoming_push_channel"
     private const val CHANNEL_ALARM_ID = "upcoming_reminders_channel"
 
-    fun setupChannels(context: Context) {
+    fun setupChannels(context: Context, soundVibrationEnabled: Boolean = true) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -74,8 +74,9 @@ object NotificationAndReminderManager {
                 "Upcoming Booking Updates",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "FCM push notifications for new bookings and cancellations"
-                enableVibration(true)
+                description = "Booking confirmations and cancellations"
+                if (soundVibrationEnabled) enableVibration(true) else enableVibration(false)
+                if (!soundVibrationEnabled) setSound(null, null)
             }
 
             val alarmChannel = NotificationChannel(
@@ -83,8 +84,9 @@ object NotificationAndReminderManager {
                 "Meeting Reminders",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Exact alarm alerts before meetings"
-                enableVibration(true)
+                description = "Reminders before meetings start"
+                if (soundVibrationEnabled) enableVibration(true) else enableVibration(false)
+                if (!soundVibrationEnabled) setSound(null, null)
             }
 
             notificationManager.createNotificationChannel(pushChannel)
@@ -125,12 +127,33 @@ object NotificationAndReminderManager {
         notificationManager.notify((System.currentTimeMillis() % 100000).toInt(), notification)
     }
 
+    /** Schedules one exact alarm per reminder offset (minutes before start). */
+    fun scheduleBookingReminders(
+        context: Context,
+        booking: Booking,
+        eventType: EventType,
+        attendeeName: String?,
+        offsetsMinutes: List<Int>
+    ) {
+        for (offset in offsetsMinutes) {
+            scheduleExactAlarm(context, booking, eventType, attendeeName, offset)
+        }
+    }
+
+    /** Cancels every alarm armed for this booking. Pass a superset of the
+     *  offsets that may have been armed (current settings + presets). */
+    fun cancelBookingReminders(context: Context, bookingUid: String, offsetsMinutes: List<Int>) {
+        for (offset in offsetsMinutes) {
+            cancelAlarm(context, bookingUid, offset)
+        }
+    }
+
     fun scheduleExactAlarm(
         context: Context,
         booking: Booking,
         eventType: EventType,
         attendeeName: String?,
-        reminderMinutesBefore: Int = 15
+        reminderMinutesBefore: Int
     ) {
         setupChannels(context)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -144,13 +167,13 @@ object NotificationAndReminderManager {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra("title", "Upcoming: ${eventType.title}")
             val nameText = if (!attendeeName.isNullOrBlank()) "with $attendeeName " else ""
-            putExtra("body", "Your meeting ${nameText}starts in $reminderMinutesBefore minutes.")
+            putExtra("body", "Your meeting ${nameText}starts in ${formatOffset(reminderMinutesBefore)}.")
             putExtra("bookingUid", booking.uid)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            booking.uid.hashCode(),
+            alarmRequestCode(booking.uid, reminderMinutesBefore),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -174,12 +197,12 @@ object NotificationAndReminderManager {
         }
     }
 
-    fun cancelAlarm(context: Context, bookingUid: String) {
+    fun cancelAlarm(context: Context, bookingUid: String, reminderMinutesBefore: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            bookingUid.hashCode(),
+            alarmRequestCode(bookingUid, reminderMinutesBefore),
             intent,
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
@@ -187,5 +210,24 @@ object NotificationAndReminderManager {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
         }
+    }
+
+    /** Stable per-(booking, offset) request code so each reminder offset owns
+     *  its own alarm slot and can be replaced or cancelled independently. */
+    private fun alarmRequestCode(bookingUid: String, minutesBefore: Int): Int =
+        bookingUid.hashCode() * 31 + minutesBefore
+
+    /** "10 minutes" / "2 hours" / "1 day" — used in alarm bodies. */
+    fun formatOffset(minutesBefore: Int): String = when {
+        minutesBefore >= 1440 && minutesBefore % 1440 == 0 -> {
+            val d = minutesBefore / 1440
+            if (d == 1) "1 day" else "$d days"
+        }
+        minutesBefore >= 60 && minutesBefore % 60 == 0 -> {
+            val h = minutesBefore / 60
+            if (h == 1) "1 hour" else "$h hours"
+        }
+        minutesBefore == 1 -> "1 minute"
+        else -> "$minutesBefore minutes"
     }
 }
