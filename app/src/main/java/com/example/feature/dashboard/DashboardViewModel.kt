@@ -28,6 +28,10 @@ class DashboardViewModel(
 
     init {
         viewModelScope.launch {
+            // Identity first: re-point primaryUserId at the signed-in account
+            // (server wins) so the host card and all flows follow it — before
+            // seeding, which only runs when the users table is still empty.
+            runCatching { repository.refreshMe() }
             repository.seedInitialDataIfEmpty()
             // Network-first sync: API → Room. Room keeps serving if offline.
             runCatching { repository.refreshEventTypes() }
