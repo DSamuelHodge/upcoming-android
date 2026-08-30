@@ -4,7 +4,7 @@
 **Timeline assumption:** 6–8 weeks end-to-end if 2–3 engineers + concurrent backend work.
 **Domain:** `getupcoming.app` (link shortener, web landing, recovery flows, credential reset).
 
-> **Progress (2026-08-30):** the **backend lane is complete** (upcoming-db PRs #19–#23) — rate limiting (WAF rule + worker tiers, verified live), FCM server-side push + `*/15` reminder cron, event-type mutations, official API domain **`api.getupcoming.app`**, ops runbook, Turso delete protection. FCM server infrastructure was provisioned 2026-08-30 (project `getupcoming`-`prod`, SA key, `wrangler secret` uploaded; send path verified — see Phase 0 → "FCM setup"): the only remaining push work is **client-side**. All Android-lane items remain open — they are the critical path now. Authoritative HTTP + push contracts: backend repo `Docs/api-contract.md` §4.
+> **Progress (2026-08-30):** the **backend lane is complete** (upcoming-db PRs #19–#23) — rate limiting (WAF rule + worker tiers, verified live), FCM server-side push + `*/15` reminder cron, event-type mutations, official API domain **`api.getupcoming.app`**, ops runbook, Turso delete protection. FCM server infrastructure was provisioned 2026-08-30 (project `getupcoming`-`prod`, SA key, `wrangler secret` uploaded; send path verified — see Phase 0 → "FCM setup"). **Client-side FCM landed 2026-08-30** (`feat/fcm-push-registration` — `firebase-messaging`, `google-services` plugin enabled, `metadata.fcmToken` + `PushRegistrar`/`UpcomingFcmService`/`PushMessageHandler`, `triggerFcmNotification`; build + `PushMessageHandlerTest` green): remaining push work is device-farm manual verification. All other Android-lane items remain open — they are the critical path now. Authoritative HTTP + push contracts: backend repo `Docs/api-contract.md` §4.
 > **AppFunctions close-out (2026-08-30):** Phase 3 runtime shipped (`f999d05`); the automated E2E suite is committed **opt-in-gated** (skipped by default); on-device E2E **verification deferred** to an android-36.1+ emulator image — root cause + resume path in Phase 3 → "Testing AppFunctions".
 
 ---
@@ -40,17 +40,16 @@ These **block Play Store approval** or create immediate post-launch fire:
 **Effort:** ~60 eng-hours (split: minify 8h, pinning 12h, Crashlytics setup 10h, Play Integrity 15h, policy audit 5h)
 
 ### Firebase Cloud Messaging (2 weeks, unblocks real push)
-- [~] **FCM setup — server/infra side DONE 2026-08-30; client wiring open**
+- [x] **FCM setup — DONE 2026-08-30 (server + client wiring)** 
   - ~~Create Firebase project~~ ✅ **`getupcoming-prod`** created via gcloud (project 189422075971); Firebase added via Management API; `fcm.googleapis.com` + `firebaseinstallations.googleapis.com` + Management API enabled; **Google Cloud SDK installed** at `~/google-cloud-sdk` (account hodgedomain@gmail.com)
   - ~~Download 
 `google-services.json` → `app/`~~ ✅ Android app registered (`appId 1:189422075971:android:e9b00c3429b5bcdb2594f6`, package app.getupcoming); config fetched via REST into 
 `app/google-services.json` — **gitignored** (public repo; re-fetch via Firebase console or the REST `/config` endpoint)
-  - [ ] Add `com.g
-oogle.gms:google-services` gradle plugin (`libs.versions.toml` already pins googleServices 4.5.0; the plugin line in `app/build.gradle.kts` is commented out)
+  - [x] Add `com.google.gms:google-services` gradle plugin ✅ **DONE 2026-08-30** (`libs.versions.toml` pins googleServices 4.5.0; `app/build.gradle.kts` now applies `alias(libs.plugins.google.services)` + `libs.firebase.messaging` via `feat/fcm-push-registration`; `google-services.json` stays gitignored per dfb4876)
   - Infra notes: SA **`fcm-push@getupcoming-prod.iam.gserviceaccount.com`** holds `roles/firebasecloudmessaging.admin`; key JSON at `~/.config/upcoming/fcm-push-sa.json` (0600, outside all 
 repos); **send path verified** with a dummy-token send (expected 400 INVALID_ARGUMENT); `wrangler secret put FCM_SERVICE_ACCOUNT` uploaded to `upcoming-db-api` — push is now LIVE server-side
   - [ ] Link project to Google Play Console (needs Play Console access)
-- [ ] **Push token lifecycle** (`NotificationAndReminderManager`)
+- [x] **Push token lifecycle** (`NotificationAndReminderManager`) — **✅ DONE 2026-08-30 (feat/fcm-push-registration)**
   - Listen to `onNewToken()` → **`PATCH /me` with `metadata.fcmToken`** (camelCase, on `/me` — NOT `/me/credentials`; contract: backend `Docs/api-contract.md` §4.4. The backend `UserMetadata` is strict, so this deployed first — 2026-08-30)
   - Server stores in `users.metadata.fcmToken`; overwrites on token refresh (one token per user for v1); server clears it automatically when FCM reports the token unregistered
 - [ ] **Server-side push** (`upcoming-db/worker.ts`) — **✅ DONE (2026-08-30, backend #22)**
@@ -60,11 +59,12 @@ repos); **send path verified** with a dummy-token send (expected 400 INVALID_ARG
  `Docs/api-contract.md` §4.4
   - ~~Remaining: Firebase
  project + service account, then `wrangler secret put FCM_SERVICE_ACCOUNT`~~ ✅ **DONE 2026-08-30** (project `getupcoming`-prod, SA + role + key, secret uploaded; send path verified)
-- [ ] **Client-side receiver** (`NotificationAndReminderManager`)
-  - `FirebaseMessagingService.onMessageReceived()` → map `action` → local alarm (if local time-based reminder still firing) or direct notification
-  - Foreground (app open): silent (let local alarm fire); background: show notification
-- [ ] **Test & staging** 
+- [x] **Client-side receiver** (`NotificationAndReminderManager`) — **✅ DONE 2026-08-30 (feat/fcm-push-registration)**
+  - `UpcomingFcmService : FirebaseMessagingService` (`app/src/main/java/app/getupcoming/core/push/UpcomingFcmService.kt`) + `PushMessageHandler` (`PushMessageHandler.kt`) — `onNewToken → PushRegistrar.registerTokenAsync → PATCH /me metadata.fcmToken`, `onMessageReceived → action` → `triggerFcmNotification` (foreground `booking.reminder` stays silent — local exact alarm owns it; background/lifecycle always surfaces); soft-fail; `MainActivity` wires `registerAsync` + `appInForeground`
+  - Foreground (app open): silent (let local alarm fire); background: show notification — implemented as above
+- [~] **Test & staging** — **partial; client unit tests DONE, device-farm open**
   - ~~Staging worker route for manual push test~~ — **✅ exists: `POST /push-reminders` (admin-only, backend #22)**; returns `{"sent":N,"checked":N}`; no-ops without `FCM_SERVICE_ACCOUNT`
+  - [x] Client unit tests — **✅ DONE 2026-08-30** — `PushMessageHandlerTest` (Robolectric, 5 tests: foreground reminder suppressed, background surfaces, lifecycle always surfaces, default title, unknown dropped) + `compileDebugKotlin` + `testDebugUnitTest` green
   - [ ] Device farm test: send from console, verify on real device
 
 **Effort:** ~80 eng-hours (split: FCM client 15h, server 20h, token lifecycle 12h, testing 20h, docs 5h)
