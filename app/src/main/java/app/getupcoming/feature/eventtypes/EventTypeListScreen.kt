@@ -38,7 +38,7 @@ fun EventTypeListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.syncError) {
-        uiState.syncError?.let { snackbarHostState.showSnackbar("Sync failed: $it") }
+        uiState.syncError?.let { snackbarHostState.showSnackbar(it) }
     }
     var deleteCandidateId by remember { mutableStateOf<Long?>(null) }
 

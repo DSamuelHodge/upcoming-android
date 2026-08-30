@@ -14,6 +14,18 @@ interface UpcomingApi {
     @retrofit2.http.GET("event-types")
     suspend fun getEventTypes(): List<EventTypeDto>
 
+    @retrofit2.http.POST("event-types")
+    suspend fun createEventType(@retrofit2.http.Body body: CreateEventTypeRequest): EventTypeDto
+
+    @retrofit2.http.PATCH("event-types/{id}")
+    suspend fun updateEventType(
+        @retrofit2.http.Path("id") id: Long,
+        @retrofit2.http.Body body: UpdateEventTypeRequest
+    ): EventTypeDto
+
+    @retrofit2.http.DELETE("event-types/{id}")
+    suspend fun deleteEventType(@retrofit2.http.Path("id") id: Long): DeleteEventTypeResponse
+
     @retrofit2.http.GET("availability")
     suspend fun getAvailability(
         @retrofit2.http.Query("eventTypeId") eventTypeId: Long,

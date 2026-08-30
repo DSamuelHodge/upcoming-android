@@ -47,6 +47,9 @@ class MainActivity : ComponentActivity() {
 
         NotificationAndReminderManager.setupChannels(applicationContext)
 
+        // FCM token registration (soft-fail; no-op signed out / demo).
+        app.getupcoming.core.push.PushRegistrar.registerAsync(applicationContext)
+
         setContent {
             UpcomingTheme {
                 Surface(
@@ -63,6 +66,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        app.getupcoming.core.push.PushMessageHandler.appInForeground = true
+    }
+
+    override fun onPause() {
+        super.onPause()
+        app.getupcoming.core.push.PushMessageHandler.appInForeground = false
     }
 
     override fun onNewIntent(intent: android.content.Intent) {

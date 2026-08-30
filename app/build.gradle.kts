@@ -1,4 +1,4 @@
-// import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
 plugins {
   alias(libs.plugins.android.application)
@@ -6,7 +6,15 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
-  // alias(libs.plugins.google.services)
+  alias(libs.plugins.google.services)
+}
+
+// google-services.json is gitignored (dfb4876 — fetched out-of-band), so a
+// fresh clone has none: warn and keep the build green instead of failing
+// processDebugGoogleServices. Real devices without the file just won't get
+// Firebase init (registerFcmToken soft-fails anyway).
+googleServices {
+  missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
 }
 
 android {
@@ -105,6 +113,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
+  implementation(libs.firebase.messaging)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
