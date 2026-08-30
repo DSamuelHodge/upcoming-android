@@ -1,8 +1,10 @@
 package com.example.feature.dashboard
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.model.*
+import androidx.glance.appwidget.updateAll
 import com.example.core.repository.UpcomingRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,7 +22,8 @@ data class DashboardUiState(
 )
 
 class DashboardViewModel(
-    private val repository: UpcomingRepository
+    private val repository: UpcomingRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -80,8 +83,44 @@ class DashboardViewModel(
                 )
             }.collect { state ->
                 _uiState.value = state
+                viewModelScope.launch { updateWidgetSnapshot(state) }
             }
         }
+    }
+
+    /** Keeps the home-screen Glance widgets (2x2 + 4x2) in sync with the
+     *  dashboard's upcoming-bookings snapshot. */
+    private suspend fun updateWidgetSnapshot(state: DashboardUiState) {
+        val fmt = java.text.SimpleDateFormat("EEE, MMM d • h:mm a", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getDefault()
+        }
+        fun label(iso: String): String = try {
+            fmt.format(java.util.Date.from(java.time.Instant.parse(iso)))
+        } catch (_: Exception) {
+            iso
+        }
+        fun joinUrl(booking: Booking): String? = try {
+            booking.locationJson?.let {
+                val loc = org.json.JSONObject(it)
+                loc.optString("url").takeIf { u -> u.isNotBlank() }
+            }
+        } catch (_: Exception) {
+            null
+        }
+        suspend fun row(booking: Booking): com.example.core.widget.WidgetBooking =
+            com.example.core.widget.WidgetBooking(
+                uid = booking.uid,
+                attendeeName = repository.getAttendeeForBooking(booking.id)?.name ?: "Invitee",
+                eventTitle = state.eventTypes.find { it.id == booking.eventTypeId }?.title ?: "Meeting",
+                timeLabel = label(booking.startTimeUtc),
+                joinUrl = joinUrl(booking)
+            )
+        val list = buildList {
+            for (booking in state.upcomingBookings.take(3)) add(row(booking))
+        }
+        com.example.core.widget.WidgetSnapshotStore.save(appContext, state.nextBooking?.let { row(it) }, list)
+        com.example.core.widget.UpcomingWidget().updateAll(appContext)
+        com.example.core.widget.UpcomingListWidget().updateAll(appContext)
     }
 
     fun toggleEventType(eventType: EventType) {

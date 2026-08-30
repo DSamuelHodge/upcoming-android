@@ -15,6 +15,8 @@ import com.example.core.network.LocationDto
 import com.example.core.network.MeResponseDto
 import com.example.core.network.PatchMeRequest
 import com.example.core.network.PatchScheduleRequest
+import com.example.core.network.SingleUseLinkDto
+import com.example.core.network.CreateSingleUseLinksRequest
 import com.example.core.network.UpcomingApi
 import com.example.core.network.UpcomingApiClient
 import com.example.core.network.UserMetadataDto
@@ -1117,6 +1119,44 @@ class UpcomingRepository(
                 createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
             )
         )
+    }
+
+    // -----------------------------------------------------------------------
+    // Single-use booking links (Calendly-style). Server state only — no Room
+    // cache, the Scheduling screen always fetches fresh.
+    // -----------------------------------------------------------------------
+
+    suspend fun createSingleUseLinks(
+        eventTypeId: Long,
+        count: Int = 1,
+        expiresInDays: Int? = null
+    ): List<SingleUseLinkDto>? = withContext(Dispatchers.IO) {
+        val api = api ?: return@withContext null
+        try {
+            apiCall { api.createSingleUseLinks(CreateSingleUseLinksRequest(eventTypeId, count, expiresInDays)) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun getSingleUseLinks(eventTypeId: Long): List<SingleUseLinkDto>? =
+        withContext(Dispatchers.IO) {
+            val api = api ?: return@withContext null
+            try {
+                apiCall { api.getSingleUseLinks(eventTypeId) }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    suspend fun revokeSingleUseLink(id: Long): Boolean = withContext(Dispatchers.IO) {
+        val api = api ?: return@withContext false
+        try {
+            apiCall { api.revokeSingleUseLink(id) }
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 }
 

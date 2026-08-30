@@ -81,7 +81,7 @@ fun AuthScreen(
                         onValueChange = { viewModel.update { s -> s.copy(username = it.filter { ch -> ch.isLetterOrDigit() || ch == '.' || ch == '_' || ch == '-' }.lowercase()) } },
                         label = { Text("Username (your booking link)") },
                         singleLine = true,
-                        supportingText = { Text("upcoming.io/${state.username.ifBlank { "you" }}") },
+                        supportingText = { Text("getupcoming.app/${state.username.ifBlank { "you" }}") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(10.dp))

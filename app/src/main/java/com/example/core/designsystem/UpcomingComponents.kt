@@ -37,6 +37,7 @@ fun UpcomingTopBar(
     navigationIcon: ImageVector? = null,
     onNavigationClick: (() -> Unit)? = null,
     userInitials: String? = null,
+    onAvatarClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     Surface(
@@ -91,6 +92,8 @@ fun UpcomingTopBar(
                 actions = {
                     actions()
                     if (userInitials != null) {
+                        // The avatar is the entry point to Settings — the bell
+                        // stays dedicated to alarms/notifications.
                         Surface(
                             shape = CircleShape,
                             color = SurfaceCard,
@@ -98,6 +101,10 @@ fun UpcomingTopBar(
                             modifier = Modifier
                                 .padding(end = 12.dp)
                                 .size(38.dp)
+                                .then(
+                                    if (onAvatarClick != null) Modifier.clickable { onAvatarClick() }
+                                    else Modifier
+                                )
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(

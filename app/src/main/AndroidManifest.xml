@@ -21,6 +21,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.MyApplication.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -32,6 +33,30 @@
         <receiver
             android:name=".core.engine.AlarmReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".core.widget.UpcomingWidgetReceiver"
+            android:exported="false"
+            android:label="Upcoming Widget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/upcoming_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".core.widget.UpcomingListWidgetReceiver"
+            android:exported="false"
+            android:label="Upcoming List">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/upcoming_widget_list_info" />
+        </receiver>
     </application>
 
 </manifest>
