@@ -22,20 +22,29 @@ sealed interface AuthState {
 
 /** Encrypted storage + lifecycle for the JWT pair. Access tokens are sent by
  *  the OkHttp interceptor; on 401 the [Authenticator] calls
- *  [refreshAccessToken] (synchronous, single-flight) and retries once. */
-class AuthTokenManager(private val context: Context) {
+ *  [refreshAccessToken] (synchronous, single-flight) and retries once.
+ *  [prefsProvider] is a test seam: production always uses the encrypted
+ *  default; unit tests inject plain SharedPreferences because
+ *  EncryptedSharedPreferences needs AndroidKeyStore, unavailable under
+ *  Robolectric. */
+class AuthTokenManager(
+    private val context: Context,
+    prefsProvider: (() -> SharedPreferences)? = null
+) {
 
     private val prefs: SharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            "upcoming_auth",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        prefsProvider?.invoke() ?: run {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context,
+                "upcoming_auth",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
     }
 
     @Volatile private var refreshing = false
