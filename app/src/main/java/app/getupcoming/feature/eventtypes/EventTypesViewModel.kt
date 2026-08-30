@@ -101,30 +101,35 @@ class EventTypesViewModel(
     fun toggleEventTypeActive(eventType: EventType) {
         viewModelScope.launch {
             repository.saveEventType(eventType.copy(isActive = !eventType.isActive))
+                .onFailure { _syncError.value = it.message ?: "Could not update event type" }
         }
     }
 
     fun duplicateEventType(eventType: EventType) {
         viewModelScope.launch {
-            val copy = eventType.copy(
-                id = 0,
-                title = "${eventType.title} (Copy)",
-                slug = "${eventType.slug}-copy"
-            )
-            repository.saveEventType(copy)
+            val base = eventType.copy(id = 0, title = "${eventType.title} (Copy)", slug = "${eventType.slug}-copy")
+            val result = repository.saveEventType(base)
+            if (result.isFailure) {
+                // Most likely a slug conflict with an earlier copy — retry
+                // once with a numbered suffix.
+                repository.saveEventType(base.copy(slug = "${eventType.slug}-copy-2"))
+                    .onFailure { _syncError.value = it.message ?: "Could not duplicate event type" }
+            }
         }
     }
 
     fun deleteEventType(id: Long) {
         viewModelScope.launch {
             repository.deleteEventType(id)
+                .onFailure { _syncError.value = it.message ?: "Could not delete event type" }
         }
     }
 
-    fun saveEventType(eventType: EventType, onSaved: () -> Unit) {
+    fun saveEventType(eventType: EventType, onSaved: () -> Unit, onError: (String) -> Unit = { _syncError.value = it }) {
         viewModelScope.launch {
             repository.saveEventType(eventType)
-            onSaved()
+                .onSuccess { onSaved() }
+                .onFailure { onError(it.message ?: "Could not save event type") }
         }
     }
 }

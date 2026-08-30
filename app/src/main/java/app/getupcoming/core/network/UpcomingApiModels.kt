@@ -323,3 +323,49 @@ data class RevokeSingleUseLinkResponse(
     val status: String? = null,
     val url: String? = null
 )
+
+// ---------------------------------------------------------------------------
+// Event-type mutations (/event-types) — create/update are full-body writes
+// (the editor always sends every field); nulls are omitted from the JSON so
+// PATCH bodies stay partial. `locations` is the JSON-encoded menu string the
+// app caches; the server accepts a real array or the encoded string.
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class CreateEventTypeRequest(
+    val slug: String,
+    val title: String,
+    val description: String? = null,
+    val lengthMinutes: Int,
+    val slotIntervalMinutes: Int? = null,
+    val bufferBefore: Int? = null,
+    val bufferAfter: Int? = null,
+    val schedulingType: String? = null,
+    val locations: String? = null,
+    val minBookingNotice: Int? = null,
+    val priceInCents: Int? = null,
+    val currency: String? = null,
+    val colorHex: String? = null,
+    val isActive: Boolean? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class UpdateEventTypeRequest(
+    val slug: String? = null,
+    val title: String? = null,
+    val description: String? = null,
+    val lengthMinutes: Int? = null,
+    val slotIntervalMinutes: Int? = null,
+    val bufferBefore: Int? = null,
+    val bufferAfter: Int? = null,
+    val schedulingType: String? = null,
+    val locations: String? = null,
+    val minBookingNotice: Int? = null,
+    val priceInCents: Int? = null,
+    val currency: String? = null,
+    val colorHex: String? = null,
+    val isActive: Boolean? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class DeleteEventTypeResponse(val ok: Boolean = false)

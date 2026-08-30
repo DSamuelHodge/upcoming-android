@@ -10,6 +10,7 @@ import app.getupcoming.core.network.AttendeeWireDto
 import app.getupcoming.core.network.BookingResultDto
 import app.getupcoming.core.network.BookingRowDto
 import app.getupcoming.core.network.CreateBookingRequest
+import app.getupcoming.core.network.CreateEventTypeRequest
 import app.getupcoming.core.network.EventTypeDto
 import app.getupcoming.core.network.LocationDto
 import app.getupcoming.core.network.MeResponseDto
@@ -19,6 +20,7 @@ import app.getupcoming.core.network.SingleUseLinkDto
 import app.getupcoming.core.network.CreateSingleUseLinksRequest
 import app.getupcoming.core.network.UpcomingApi
 import app.getupcoming.core.network.UpcomingApiClient
+import app.getupcoming.core.network.UpdateEventTypeRequest
 import app.getupcoming.core.network.UserMetadataDto
 import app.getupcoming.core.network.UserPrefsDto
 import app.getupcoming.core.network.apiCall
@@ -503,27 +505,127 @@ class UpcomingRepository(
         return eventTypeDao.getEventTypeBySlug(slug)?.toDomain()
     }
 
-    suspend fun saveEventType(eventType: EventType): Long {
-        val entity = eventType.toEntity()
-        return if (eventType.id == 0L) {
-            val newId = eventTypeDao.insertEventType(entity)
-            eventTypeDao.insertEventTypeHost(
-                EventTypeHostEntity(
-                    eventTypeId = newId,
-                    hostUserId = eventType.ownerUserId,
-                    priority = 0
-                )
-            )
-            newId
-        } else {
-            eventTypeDao.updateEventType(entity)
-            eventType.id
+    /**
+     * Create/update an event type. Remote-first when an API client is
+     * configured: the server owns ids, slug-uniqueness (409 on conflict) and
+     * the uniform host row, and the stored DTO mirrors back into Room.
+     * Demo/offline sessions (no API) write Room only. Returns the stored id.
+     */
+    suspend fun saveEventType(eventType: EventType): Result<Long> = withContext(Dispatchers.IO) {
+        try {
+            val api = api ?: run {
+                // Demo path: local-only write, exactly as before remote sync.
+                val entity = eventType.toEntity()
+                val id = if (eventType.id == 0L) {
+                    val newId = eventTypeDao.insertEventType(entity)
+                    eventTypeDao.insertEventTypeHost(
+                        EventTypeHostEntity(
+                            eventTypeId = newId,
+                            hostUserId = eventType.ownerUserId,
+                            priority = 0
+                        )
+                    )
+                    newId
+                } else {
+                    eventTypeDao.updateEventType(entity)
+                    eventType.id
+                }
+                return@withContext Result.success(id)
+            }
+
+            val dto = if (eventType.id == 0L) {
+                apiCall {
+                    api.createEventType(
+                        CreateEventTypeRequest(
+                            slug = eventType.slug,
+                            title = eventType.title,
+                            description = eventType.description,
+                            lengthMinutes = eventType.lengthMinutes,
+                            slotIntervalMinutes = eventType.slotIntervalMinutes,
+                            bufferBefore = eventType.bufferBefore,
+                            bufferAfter = eventType.bufferAfter,
+                            schedulingType = eventType.schedulingType,
+                            locations = eventType.locationsJson,
+                            minBookingNotice = eventType.minBookingNotice,
+                            priceInCents = eventType.priceInCents,
+                            currency = eventType.currency,
+                            colorHex = eventType.colorHex,
+                            isActive = eventType.isActive
+                        )
+                    )
+                }
+            } else {
+                apiCall {
+                    api.updateEventType(
+                        eventType.id,
+                        UpdateEventTypeRequest(
+                            slug = eventType.slug,
+                            title = eventType.title,
+                            description = eventType.description,
+                            lengthMinutes = eventType.lengthMinutes,
+                            slotIntervalMinutes = eventType.slotIntervalMinutes,
+                            bufferBefore = eventType.bufferBefore,
+                            bufferAfter = eventType.bufferAfter,
+                            schedulingType = eventType.schedulingType,
+                            locations = eventType.locationsJson,
+                            minBookingNotice = eventType.minBookingNotice,
+                            priceInCents = eventType.priceInCents,
+                            currency = eventType.currency,
+                            colorHex = eventType.colorHex,
+                            isActive = eventType.isActive
+                        )
+                    )
+                }
+            }
+            Result.success(storeRemoteEventType(dto))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    suspend fun deleteEventType(id: Long) {
-        eventTypeDao.deleteEventTypeById(id)
-        eventTypeDao.deleteHostsByEventTypeId(id)
+    /** Upserts a server event-type DTO into Room and returns its id. */
+    private suspend fun storeRemoteEventType(dto: EventTypeDto): Long {
+        val entity = dto.toEntity()
+        val existing = eventTypeDao.getEventTypeById(dto.id)
+        if (existing != null) {
+            eventTypeDao.updateEventType(entity)
+        } else {
+            eventTypeDao.insertEventType(entity)
+        }
+        // Keep local host rows in parity with the server's uniform host model.
+        for (hostId in dto.hostUserIds) {
+            val already = eventTypeDao.getHostsForEventType(dto.id).any { it.hostUserId == hostId }
+            if (!already) {
+                eventTypeDao.insertEventTypeHost(
+                    EventTypeHostEntity(eventTypeId = dto.id, hostUserId = hostId, priority = 0)
+                )
+            }
+        }
+        return dto.id
+    }
+
+    /**
+     * Deletes an event type. Remote-first: the server refuses (409) when
+     * bookings reference the type — surface that instead of deleting locally;
+     * a 404 (already gone server-side) still reconciles the local cache.
+     * Demo/offline sessions delete Room only.
+     */
+    suspend fun deleteEventType(id: Long): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            if (api != null) {
+                try {
+                    apiCall { api.deleteEventType(id) }
+                } catch (e: ApiException.NotFound) {
+                    // Server never knew it (or it was already deleted) — the
+                    // local row is stale either way, so purge it below.
+                }
+            }
+            eventTypeDao.deleteEventTypeById(id)
+            eventTypeDao.deleteHostsByEventTypeId(id)
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getBookingByUid(uid: String): Booking? {

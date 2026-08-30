@@ -152,9 +152,11 @@ fun EventTypeEditorScreen(
                                 isActive = true
                             )
 
-                            viewModel.saveEventType(updated) {
-                                onNavigateBack()
-                            }
+                            viewModel.saveEventType(
+                                updated,
+                                onSaved = { onNavigateBack() },
+                                onError = { errorMessage = it }
+                            )
                         },
                         modifier = Modifier.weight(1f)
                     )
