@@ -175,3 +175,93 @@ data class MarkPaidResponse(
 
 @JsonClass(generateAdapter = false)
 data class ApiErrorDto(val error: String? = null)
+
+// ---------------------------------------------------------------------------
+// User settings (/me)
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class UserMetadataDto(
+    val defaultLocation: LocationDto? = null,
+    val locations: LocationsMapDto? = null,
+    val defaultLocationType: String? = null,
+    val prefs: UserPrefsDto? = null,
+    val role: String? = null,
+    val company: String? = null
+)
+
+// One configured location per type (each with its own label + value) for
+// booking defaults; keys use the wire name "integrations:daily".
+@JsonClass(generateAdapter = false)
+data class LocationsMapDto(
+    @Json(name = "integrations:daily") val daily: LocationDto? = null,
+    val inPerson: LocationDto? = null,
+    val userPhone: LocationDto? = null
+) {
+    fun entryFor(type: String): LocationDto? = when (type) {
+        "integrations:daily" -> daily
+        "inPerson" -> inPerson
+        "userPhone" -> userPhone
+        else -> null
+    }
+}
+
+@JsonClass(generateAdapter = false)
+data class UserPrefsDto(
+    val timeFormat: String? = null,
+    // Pre-meeting reminder lead times in minutes (server normalizes to
+    // sorted-ascending, max 5).
+    val reminderOffsets: List<Int>? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class ScheduleDto(
+    val id: Long = 0,
+    val name: String = "",
+    val timezone: String = ""
+)
+
+@JsonClass(generateAdapter = false)
+data class MeResponseDto(
+    val id: Long,
+    val email: String,
+    val username: String,
+    val timezone: String,
+    val displayName: String = "",
+    val avatarUrl: String = "",
+    val metadata: UserMetadataDto = UserMetadataDto(),
+    val schedule: ScheduleDto? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class PatchMeRequest(
+    val displayName: String? = null,
+    val avatarUrl: String? = null,
+    val email: String? = null,
+    val username: String? = null,
+    val timezone: String? = null,
+    val metadata: UserMetadataDto? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class PatchScheduleRequest(
+    val name: String? = null,
+    val timezone: String? = null
+)
+
+// ---------------------------------------------------------------------------
+// User credentials (/me/credentials) — masked hints only; plaintext values
+// are write-only from the client's perspective.
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class CredentialHintDto(
+    val type: String,
+    val hint: String
+)
+
+@JsonClass(generateAdapter = false)
+data class PutCredentialRequest(val value: String)
+
+@JsonClass(generateAdapter = false)
+data class DeleteCredentialResponse(val deleted: String? = null)

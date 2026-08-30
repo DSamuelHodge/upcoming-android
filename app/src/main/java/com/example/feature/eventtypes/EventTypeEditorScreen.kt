@@ -47,7 +47,18 @@ fun EventTypeEditorScreen(
     var bufferAfter by remember(existing) { mutableIntStateOf(existing?.bufferAfter ?: 10) }
     var minNoticeMinutes by remember(existing) { mutableIntStateOf(existing?.minBookingNotice ?: 60) }
     var schedulingType by remember(existing) { mutableStateOf(existing?.schedulingType ?: "individual") }
-    var locationType by remember(existing) { mutableStateOf("daily") }
+    var locationType by remember(existing) {
+        // New event types prefill from the Settings default location.
+        val fromDefault = if (eventTypeId == 0L) viewModel.defaultLocation.value?.let { loc ->
+            when (loc.type) {
+                "integrations:daily" -> "daily"
+                "userPhone" -> "phone"
+                "inPerson" -> "inPerson"
+                else -> null
+            }
+        } else null
+        mutableStateOf(fromDefault ?: "daily")
+    }
     var isPaid by remember(existing) { mutableStateOf((existing?.priceInCents ?: 0) > 0) }
     var priceDollars by remember(existing) { mutableStateOf(if ((existing?.priceInCents ?: 0) > 0) "${(existing?.priceInCents ?: 0) / 100}" else "50") }
     var selectedColorHex by remember(existing) { mutableStateOf(existing?.colorHex ?: "#0B5CFF") }
@@ -90,11 +101,32 @@ fun EventTypeEditorScreen(
                                 title.lowercase().replace(" ", "-").replace(Regex("[^a-z0-9-]"), "")
                             }
 
+                            // A user-level default location (Settings) fills in
+                            // the label/room/address/phone for new event types.
+                            val defaultLoc = if (eventTypeId == 0L) viewModel.defaultLocation.value else null
                             val locationsJson = when (locationType) {
-                                "daily" -> """[{"type":"integrations:daily","label":"Daily Video Call","url":"https://upcoming.daily.co/$safeSlug"}]"""
+                                "daily" -> {
+                                    val url = defaultLoc?.url?.takeIf { it.isNotBlank() }
+                                        ?: "https://upcoming.daily.co/$safeSlug"
+                                    val lbl = defaultLoc?.label?.takeIf { it.isNotBlank() && defaultLoc.type == "integrations:daily" }
+                                        ?: "Daily Video Call"
+                                    """[{"type":"integrations:daily","label":"$lbl","url":"$url"}]"""
+                                }
                                 "meet" -> """[{"type":"googleMeet","label":"Google Meet"}]"""
-                                "phone" -> """[{"type":"userPhone","label":"Phone Call"}]"""
-                                else -> """[{"type":"inPerson","label":"In-Person Meeting"}]"""
+                                "phone" -> {
+                                    val phone = defaultLoc?.phone?.takeIf { it.isNotBlank() && defaultLoc.type == "userPhone" }
+                                    val lbl = defaultLoc?.label?.takeIf { it.isNotBlank() && defaultLoc.type == "userPhone" }
+                                        ?: "Phone Call"
+                                    if (phone != null) """[{"type":"userPhone","label":"$lbl","phone":"$phone","displayPhone":"$phone"}]"""
+                                    else """[{"type":"userPhone","label":"$lbl"}]"""
+                                }
+                                else -> {
+                                    val addr = defaultLoc?.address?.takeIf { it.isNotBlank() && defaultLoc.type == "inPerson" }
+                                    val lbl = defaultLoc?.label?.takeIf { it.isNotBlank() && defaultLoc.type == "inPerson" }
+                                        ?: "In-Person Meeting"
+                                    if (addr != null) """[{"type":"inPerson","label":"$lbl","address":"$addr"}]"""
+                                    else """[{"type":"inPerson","label":"$lbl"}]"""
+                                }
                             }
 
                             val priceCents = if (isPaid) {

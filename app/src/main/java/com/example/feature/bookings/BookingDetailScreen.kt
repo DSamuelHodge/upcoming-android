@@ -240,16 +240,6 @@ fun BookingDetailScreen(
                                     leadingIcon = Icons.Default.EventNote,
                                     modifier = Modifier.weight(1f)
                                 )
-
-                                UpcomingSecondaryButton(
-                                    text = "Test Alarm Alert",
-                                    onClick = {
-                                        viewModel.triggerTestReminder(b, item.eventType, item.attendee)
-                                        Toast.makeText(context, "Heads-up alert triggered!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    leadingIcon = Icons.Default.Alarm,
-                                    modifier = Modifier.weight(1f)
-                                )
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
