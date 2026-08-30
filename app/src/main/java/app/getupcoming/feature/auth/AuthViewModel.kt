@@ -39,13 +39,20 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     }
 
     fun login(onSuccess: () -> Unit) {
-        submit { authRepository.login(it.email, it.password) ; onSuccess() }
+        submit {
+            // Only navigate when auth actually succeeded — otherwise the gate
+            // (bottom bar, sync) never engages because authState stays LoggedOut.
+            authRepository.login(it.email, it.password)
+                .onSuccess { onSuccess() }
+                .onFailure { throw it }
+        }
     }
 
     fun signUp(onSuccess: () -> Unit) {
         submit {
             authRepository.signUp(it.email, it.password, it.username, it.displayName, null)
-            onSuccess()
+                .onSuccess { onSuccess() }
+                .onFailure { throw it }
         }
     }
 
