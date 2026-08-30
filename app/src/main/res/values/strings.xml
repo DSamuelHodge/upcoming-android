@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Upcoming</string>
+    <string name="app_functions_user_visible_description">Lets assistants check your availability, look up your upcoming bookings, and create single-use booking links you can share.</string>
 </resources>

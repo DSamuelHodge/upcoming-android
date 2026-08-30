@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppFunctionAppMetadata
+    xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:description="Upcoming is a scheduling app. The signed-in user is the meeting host;
+    attendees book meetings on the user's public booking page.
+    Operational Patterns:
+    - Use 'listEventTypes' to discover the user's bookable meeting types and their ids.
+    - Use 'checkAvailability' before sharing a time, and 'getUpcomingBookings' or 'getBooking' to answer questions about scheduled meetings.
+    - Use 'createSingleUseBookingLink' to mint a one-time booking link and share the returned url with the invitee.
+    - Use 'getPersonalShareLink' when the user wants to share their booking page rather than a single meeting type.
+    Constraints:
+    - Every function requires the user to be signed in to Upcoming; if not, ask them to sign in first.
+    - The user is always the host; never offer to book meetings on their behalf."
+    appfn:displayDescription="@string/app_functions_user_visible_description" />
