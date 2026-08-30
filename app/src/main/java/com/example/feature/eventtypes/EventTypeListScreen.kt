@@ -254,7 +254,7 @@ fun EventTypeItemCard(
     onDelete: () -> Unit,
     onTestBooking: () -> Unit
 ) {
-    val shareUrl = "https://upcoming.io/$username/${eventType.slug}"
+    val shareUrl = "https://getupcoming.app/$username/${eventType.slug}"
     var showMenu by remember { mutableStateOf(false) }
 
     val brandColor = try {
@@ -290,7 +290,7 @@ fun EventTypeItemCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "upcoming.io/$username/${eventType.slug}",
+                        text = "getupcoming.app/$username/${eventType.slug}",
                         style = MaterialTheme.typography.bodySmall,
                         color = UpcomingTokens.BrandPrimary
                     )

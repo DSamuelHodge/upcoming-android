@@ -218,7 +218,7 @@ fun EventTypeEditorScreen(
                         value = slug,
                         onValueChange = { slug = it },
                         label = { Text("Link URL Slug") },
-                        prefix = { Text("upcoming.io/alex/") },
+                        prefix = { Text("getupcoming.app/") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = UpcomingTokens.RadiusMedium

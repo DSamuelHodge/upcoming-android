@@ -291,3 +291,35 @@ data class PutCredentialRequest(val value: String)
 
 @JsonClass(generateAdapter = false)
 data class DeleteCredentialResponse(val deleted: String? = null)
+
+// ---------------------------------------------------------------------------
+// Single-use booking links (/single-use-links) — Calendly-style one-time
+// links burned when a booking lands carrying their token.
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class SingleUseLinkDto(
+    val id: Long,
+    val token: String,
+    val url: String,
+    val eventTypeId: Long,
+    val createdAt: String? = null,
+    val expiresAt: String? = null,
+    val usedAt: String? = null,
+    val revokedAt: String? = null,
+    val status: String = "unused"
+)
+
+@JsonClass(generateAdapter = false)
+data class CreateSingleUseLinksRequest(
+    val eventTypeId: Long,
+    val count: Int = 1,
+    val expiresInDays: Int? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class RevokeSingleUseLinkResponse(
+    val id: Long,
+    val status: String? = null,
+    val url: String? = null
+)

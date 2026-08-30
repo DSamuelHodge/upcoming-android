@@ -37,6 +37,8 @@ import com.example.feature.bookings.BookingsViewModel
 import com.example.feature.dashboard.DashboardScreen
 import com.example.feature.dashboard.DashboardViewModel
 import com.example.feature.eventtypes.EventTypeEditorScreen
+import com.example.feature.scheduling.SchedulingScreen
+import com.example.feature.scheduling.SchedulingViewModel
 import com.example.feature.eventtypes.EventTypeListScreen
 import com.example.feature.eventtypes.EventTypesViewModel
 import com.example.feature.notifications.NotificationsScreen
@@ -55,6 +57,7 @@ object UpcomingDestinations {
     const val BOOKING_FLOW = "book"
     const val SETTINGS = "settings"
     const val NOTIFICATIONS = "settings/notifications"
+    const val SCHEDULING = "scheduling"
     const val AUTH = "auth"
     const val TERMS = "legal/terms"
     const val PRIVACY = "legal/privacy"
@@ -73,6 +76,8 @@ fun UpcomingNavHost(
     repository: UpcomingRepository,
     context: android.content.Context,
     authRepository: com.example.core.auth.AuthRepository,
+    pendingBookingUid: String? = null,
+    onConsumePendingBooking: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
     modifier: Modifier = Modifier
 ) {
@@ -83,6 +88,15 @@ fun UpcomingNavHost(
     val authState by authRepository.authState.collectAsState()
     val authenticated = authState is com.example.core.auth.AuthState.LoggedIn ||
         authState is com.example.core.auth.AuthState.Demo
+
+    // Widget deep link: once signed in, route the tapped booking straight to
+    // Booking Detail, then consume the pending value so it doesn't re-fire.
+    androidx.compose.runtime.LaunchedEffect(authenticated, pendingBookingUid) {
+        if (authenticated && pendingBookingUid != null) {
+            navController.navigate("${UpcomingDestinations.BOOKING_DETAIL}/$pendingBookingUid")
+            onConsumePendingBooking()
+        }
+    }
 
     val bottomNavItems = listOf(
         GeometricNavItem(
@@ -104,10 +118,10 @@ fun UpcomingNavHost(
             unselectedIcon = Icons.Outlined.DateRange
         ),
         GeometricNavItem(
-            route = UpcomingDestinations.SETTINGS,
-            label = "Settings",
-            selectedIcon = Icons.Filled.Tune,
-            unselectedIcon = Icons.Outlined.Tune
+            route = UpcomingDestinations.SCHEDULING,
+            label = "Scheduling",
+            selectedIcon = Icons.Filled.Link,
+            unselectedIcon = Icons.Outlined.Link
         )
     )
 
@@ -116,6 +130,7 @@ fun UpcomingNavHost(
         UpcomingDestinations.EVENT_TYPES,
         UpcomingDestinations.AVAILABILITY,
         UpcomingDestinations.BOOKINGS,
+        UpcomingDestinations.SCHEDULING,
         UpcomingDestinations.SETTINGS
     )
 
@@ -179,13 +194,14 @@ fun UpcomingNavHost(
 
             // 1. Host Dashboard
             composable(UpcomingDestinations.DASHBOARD) {
-                val viewModel = rememberViewModel { DashboardViewModel(repository) }
+                val viewModel = rememberViewModel { DashboardViewModel(repository, context.applicationContext) }
                 DashboardScreen(
                     viewModel = viewModel,
                     onNavigateToEventTypes = { navController.navigate(UpcomingDestinations.EVENT_TYPES) },
                     onNavigateToAvailability = { navController.navigate(UpcomingDestinations.AVAILABILITY) },
                     onNavigateToBookings = { navController.navigate(UpcomingDestinations.BOOKINGS) },
-                    onNavigateToNotifications = { navController.navigate(UpcomingDestinations.SETTINGS) },
+                    onNavigateToNotifications = { navController.navigate(UpcomingDestinations.NOTIFICATIONS) },
+                    onNavigateToSettings = { navController.navigate(UpcomingDestinations.SETTINGS) },
                     onOpenBookingFlow = { eventTypeId ->
                         navController.navigate("${UpcomingDestinations.BOOKING_FLOW}/$eventTypeId")
                     },
@@ -278,6 +294,15 @@ fun UpcomingNavHost(
             }
 
             // 8. Settings Hub
+            // Scheduling — Calendly-style share surface (4th bottom tab).
+            composable(UpcomingDestinations.SCHEDULING) {
+                val viewModel = rememberViewModel { SchedulingViewModel(repository) }
+                SchedulingScreen(
+                    viewModel = viewModel,
+                    onOpenSettings = { navController.navigate(UpcomingDestinations.SETTINGS) }
+                )
+            }
+
             composable(UpcomingDestinations.SETTINGS) {
                 val viewModel = rememberViewModel { SettingsViewModel(repository, authRepository) }
                 SettingsScreen(

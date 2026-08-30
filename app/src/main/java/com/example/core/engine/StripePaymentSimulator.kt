@@ -37,7 +37,7 @@ object StripePaymentSimulator {
                 currency = currency,
                 last4 = "0000",
                 cardBrand = "Free",
-                receiptUrl = "https://upcoming.io/receipts/free"
+                receiptUrl = "https://getupcoming.app/receipts/free"
             )
         }
 

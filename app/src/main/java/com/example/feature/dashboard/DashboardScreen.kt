@@ -42,6 +42,7 @@ fun DashboardScreen(
     onNavigateToAvailability: () -> Unit,
     onNavigateToBookings: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onOpenBookingFlow: (Long) -> Unit,
     onOpenBookingDetail: (String) -> Unit,
     onNavigateToCreateEventType: (() -> Unit)? = null
@@ -55,6 +56,7 @@ fun DashboardScreen(
                 title = "Upcoming",
                 subtitle = "Booking & Scheduling Platform",
                 userInitials = uiState.user?.displayName?.split(" ")?.mapNotNull { it.firstOrNull()?.toString() }?.take(2)?.joinToString("") ?: "JD",
+                onAvatarClick = onNavigateToSettings,
                 actions = {
                     IconButton(
                         onClick = onNavigateToNotifications,
@@ -119,7 +121,7 @@ fun DashboardScreen(
                 HostHeaderCard(
                     user = uiState.user,
                     onShareProfile = {
-                        val shareUrl = "https://upcoming.io/${uiState.user?.username ?: ""}"
+                        val shareUrl = "https://getupcoming.app/${uiState.user?.username ?: ""}"
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, "Book time with me on Upcoming: $shareUrl")
@@ -282,7 +284,7 @@ fun HostHeaderCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "upcoming.io/${user?.username ?: ""}",
+                            text = "getupcoming.app/${user?.username ?: ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -538,7 +540,7 @@ fun GeometricEventTypeCard(
     username: String,
     onBookNow: () -> Unit
 ) {
-    val shareUrl = "upcoming.io/$username/${eventType.slug}"
+    val shareUrl = "getupcoming.app/$username/${eventType.slug}"
 
     UpcomingCard(
         modifier = Modifier.fillMaxWidth(),

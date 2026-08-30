@@ -77,6 +77,17 @@ interface UpcomingApi {
 
     @retrofit2.http.POST("auth/logout")
     suspend fun logout(@retrofit2.http.Body body: RefreshRequest): Map<String, Boolean>
+
+    // Single-use booking links (Calendly-style one-time links).
+
+    @retrofit2.http.POST("single-use-links")
+    suspend fun createSingleUseLinks(@retrofit2.http.Body body: CreateSingleUseLinksRequest): List<SingleUseLinkDto>
+
+    @retrofit2.http.GET("single-use-links")
+    suspend fun getSingleUseLinks(@retrofit2.http.Query("eventTypeId") eventTypeId: Long): List<SingleUseLinkDto>
+
+    @retrofit2.http.DELETE("single-use-links/{id}")
+    suspend fun revokeSingleUseLink(@retrofit2.http.Path("id") id: Long): RevokeSingleUseLinkResponse
 }
 
 object UpcomingApiClient {
