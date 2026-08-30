@@ -243,6 +243,32 @@ data class PatchMeRequest(
     val metadata: UserMetadataDto? = null
 )
 
+// ---------------------------------------------------------------------------
+// Auth (/auth/*) — JWT pair + the user it authenticates.
+// ---------------------------------------------------------------------------
+
+@JsonClass(generateAdapter = false)
+data class SignUpRequest(
+    val email: String,
+    val password: String,
+    val username: String,
+    val displayName: String? = null,
+    val timezone: String? = null
+)
+
+@JsonClass(generateAdapter = false)
+data class LoginRequest(val email: String, val password: String)
+
+@JsonClass(generateAdapter = false)
+data class RefreshRequest(val refreshToken: String)
+
+@JsonClass(generateAdapter = false)
+data class AuthResponse(
+    val accessToken: String,
+    val refreshToken: String,
+    val user: MeResponseDto
+)
+
 @JsonClass(generateAdapter = false)
 data class PatchScheduleRequest(
     val name: String? = null,

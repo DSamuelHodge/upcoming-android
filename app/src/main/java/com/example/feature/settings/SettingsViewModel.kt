@@ -28,7 +28,10 @@ data class SettingsUiState(
     val savedTick: Long = 0
 )
 
-class SettingsViewModel(private val repository: UpcomingRepository) : ViewModel() {
+class SettingsViewModel(
+    private val repository: UpcomingRepository,
+    private val authRepository: com.example.core.auth.AuthRepository? = null
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -98,6 +101,14 @@ class SettingsViewModel(private val repository: UpcomingRepository) : ViewModel(
                 val hint = repository.putCredential(type, value)
                 _uiState.update { it.copy(credentialHints = it.credentialHints + (hint.type to hint.hint)) }
             }
+        }
+    }
+
+    /** Revoke the session server-side, clear local state, exit to auth. */
+    fun logout(onDone: () -> Unit) {
+        viewModelScope.launch {
+            authRepository?.logout()
+            onDone()
         }
     }
 

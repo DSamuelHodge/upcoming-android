@@ -6,4 +6,12 @@
         <item name="android:navigationBarColor">@color/upcoming_canvas</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- Launch splash (androidx.core.splashscreen): cream canvas + coral
+         monogram, hands off to the normal app theme. -->
+    <style name="Theme.MyApplication.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/upcoming_canvas</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_monogram</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
+    </style>
 </resources>

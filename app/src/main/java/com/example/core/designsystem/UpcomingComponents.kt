@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -280,6 +282,8 @@ fun StatusBadge(
     // Doc: badge-status = dot + label, DM Mono 12sp
     val dotColor = when (status.lowercase()) {
         "accepted" -> SemanticSuccess
+        "granted" -> SemanticSuccess
+        "off" -> SemanticError
         "pending" -> AccentAmber
         "cancelled" -> SemanticError
         "individual" -> PrimaryCoral
@@ -289,6 +293,8 @@ fun StatusBadge(
     }
     val textLabel = when (status.lowercase()) {
         "accepted" -> "Confirmed"
+        "granted" -> "Granted"
+        "off" -> "Off"
         "individual" -> "1-on-1"
         "round_robin" -> "Round Robin"
         "collective" -> "Collective"
@@ -428,4 +434,57 @@ fun SerifCallout(
         color = color,
         modifier = modifier
     )
+}
+
+/** Circular monogram badge on the brand coral — used for the splash/app
+ *  identity and empty-state accents. */
+@Composable
+fun MonogramBadge(
+    letter: String,
+    size: androidx.compose.ui.unit.Dp = 48.dp,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(UpcomingTokens.BrandPrimary),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = letter,
+            color = OnDark,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        )
+    }
+}
+
+/** The app's single loading pattern: centered spinner + muted label, on the
+ *  card surface. Use it wherever a sync or initial load is in flight. */
+@Composable
+fun UpcomingLoadingRow(
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    UpcomingCard(
+        modifier = modifier.fillMaxWidth(),
+        padding = PaddingValues(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = UpcomingTokens.BrandPrimary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }

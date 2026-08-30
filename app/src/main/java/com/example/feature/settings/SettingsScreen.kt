@@ -76,7 +76,11 @@ private val CREDENTIAL_SPECS = listOf(
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateToNotifications: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onLoggedOut: () -> Unit,
+    onNavigateToPermissions: () -> Unit,
+    onNavigateToTerms: () -> Unit,
+    onNavigateToPrivacy: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,6 +96,8 @@ fun SettingsScreen(
     var showTimezonePicker by remember { mutableStateOf(false) }
     var editingLocationType by remember { mutableStateOf<String?>(null) }
     var editingCredential by remember { mutableStateOf<CredentialSpec?>(null) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
+    var loggingOut by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -146,6 +152,39 @@ fun SettingsScreen(
                         value = "/u/${user?.username ?: ""}",
                         valueMono = true
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showLogoutConfirm = true },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Logout,
+                                contentDescription = null,
+                                tint = SemanticError,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                "Log out",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = SemanticError
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
@@ -221,7 +260,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. Notifications --------------------------------------------------
+            // 4. App -------------------------------------------------------------
             item {
                 SectionHeader("APP")
                 UpcomingCard {
@@ -231,6 +270,39 @@ fun SettingsScreen(
                         description = "Push alerts and exact pre-meeting alarms",
                         value = "On device",
                         onClick = onNavigateToNotifications,
+                        showChevron = true
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline)
+                    SettingRow(
+                        icon = Icons.Outlined.Shield,
+                        label = "Device Permissions",
+                        description = "Notifications, exact alarms, and access grants",
+                        value = "",
+                        onClick = onNavigateToPermissions,
+                        showChevron = true
+                    )
+                }
+            }
+
+            // 4b. About ----------------------------------------------------------
+            item {
+                SectionHeader("ABOUT")
+                UpcomingCard {
+                    SettingRow(
+                        icon = Icons.Outlined.Description,
+                        label = "Terms of Use",
+                        description = "Draft — pending review",
+                        value = "",
+                        onClick = onNavigateToTerms,
+                        showChevron = true
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline)
+                    SettingRow(
+                        icon = Icons.Outlined.PrivacyTip,
+                        label = "Privacy Policy",
+                        description = "Draft — pending review",
+                        value = "",
+                        onClick = onNavigateToPrivacy,
                         showChevron = true
                     )
                 }
@@ -266,6 +338,29 @@ fun SettingsScreen(
     }
 
     val currentUser = state.user
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text("Log out") },
+            text = { Text("You'll need to sign in again to manage your events and bookings on this device.") },
+            confirmButton = {
+                TextButton(
+                    enabled = !loggingOut,
+                    onClick = {
+                        loggingOut = true
+                        viewModel.logout {
+                            loggingOut = false
+                            showLogoutConfirm = false
+                            onLoggedOut()
+                        }
+                    }
+                ) { Text("Log out", color = SemanticError) }
+            },
+            dismissButton = {
+                TextButton(enabled = !loggingOut, onClick = { showLogoutConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
     if (showProfileEditor && currentUser != null) {
         ProfileEditDialog(
             user = currentUser,

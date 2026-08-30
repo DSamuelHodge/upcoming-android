@@ -127,6 +127,13 @@ object NotificationAndReminderManager {
         notificationManager.notify((System.currentTimeMillis() % 100000).toInt(), notification)
     }
 
+    /** Whether the OS still allows this app to set exact alarms. */
+    fun canScheduleExactAlarms(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            am.canScheduleExactAlarms()
+        } else true
+
     /** Schedules one exact alarm per reminder offset (minutes before start). */
     fun scheduleBookingReminders(
         context: Context,

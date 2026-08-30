@@ -63,6 +63,20 @@ interface UpcomingApi {
 
     @retrofit2.http.DELETE("me/credentials/{type}")
     suspend fun deleteCredential(@retrofit2.http.Path("type") type: String): DeleteCredentialResponse
+
+    // Auth — open routes minting the JWT pair.
+
+    @retrofit2.http.POST("auth/signup")
+    suspend fun signUp(@retrofit2.http.Body body: SignUpRequest): AuthResponse
+
+    @retrofit2.http.POST("auth/login")
+    suspend fun login(@retrofit2.http.Body body: LoginRequest): AuthResponse
+
+    @retrofit2.http.POST("auth/refresh")
+    suspend fun refresh(@retrofit2.http.Body body: RefreshRequest): AuthResponse
+
+    @retrofit2.http.POST("auth/logout")
+    suspend fun logout(@retrofit2.http.Body body: RefreshRequest): Map<String, Boolean>
 }
 
 object UpcomingApiClient {
@@ -72,25 +86,41 @@ object UpcomingApiClient {
 
     fun create(
         baseUrl: String = BuildConfig.UPCOMING_API_BASE_URL,
-        apiSecret: String = BuildConfig.UPCOMING_API_SECRET
+        apiSecret: String = BuildConfig.UPCOMING_API_SECRET,
+        auth: com.example.core.auth.AuthTokenManager? = null
     ): UpcomingApi {
         require(baseUrl.isNotBlank()) { "UPCOMING_API_BASE_URL is not configured (.env)" }
         require(apiSecret.isNotBlank()) { "UPCOMING_API_SECRET is not configured (.env)" }
+
+        // JWT when logged in, legacy shared secret otherwise (demo/admin).
+        val normalizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+        val authenticator = auth?.let { mgr ->
+            okhttp3.Authenticator { _, response ->
+                val hadJwt = response.request.header("Authorization")?.startsWith("Bearer ey") == true
+                if (!hadJwt || response.priorResponse != null) return@Authenticator null
+                if (!mgr.refreshAccessToken(normalizedBaseUrl)) return@Authenticator null
+                response.request.newBuilder()
+                    .header("Authorization", "Bearer ${mgr.accessToken()}")
+                    .build()
+            }
+        }
 
         val client = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
+                val token = auth?.accessToken() ?: apiSecret
                 chain.proceed(
                     chain.request().newBuilder()
-                        .header("Authorization", "Bearer $apiSecret")
+                        .header("Authorization", "Bearer $token")
                         .build()
                 )
             }
+            .apply { authenticator?.let { authenticator(it) } }
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/")
+            .baseUrl(normalizedBaseUrl)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
