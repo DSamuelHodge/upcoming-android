@@ -11,7 +11,7 @@ plugins {
 
 android {
   namespace = "app.getupcoming"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk { version = release(37) { minorApiLevel = 1 } }
 
   defaultConfig {
     applicationId = "app.getupcoming"
@@ -141,5 +141,7 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+  implementation(libs.androidx.appfunctions)
+  "ksp"(libs.androidx.appfunctions.compiler)
   implementation(libs.stripe.android)
 }
