@@ -13,16 +13,36 @@ data class EventTypesUiState(
     val user: User? = null,
     val searchQuery: String = "",
     val filterType: String = "ALL", // "ALL", "INDIVIDUAL", "COLLECTIVE", "PAID"
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    // Server sync in flight (spinner); isLoading alone only tracks Room.
+    val isRefreshing: Boolean = false,
+    val syncError: String? = null
 )
 
 class EventTypesViewModel(
     private val repository: UpcomingRepository
 ) : ViewModel() {
 
+    private val _isRefreshing = MutableStateFlow(false)
+    private val _syncError = MutableStateFlow<String?>(null)
+
     init {
+        refresh()
+    }
+
+    /** Pull event types from the server; surfaces progress + failure to the UI. */
+    fun refresh() {
+        if (_isRefreshing.value) return
+        _isRefreshing.value = true
+        _syncError.value = null
         viewModelScope.launch {
-            runCatching { repository.refreshEventTypes() }
+            try {
+                repository.refreshEventTypes()
+            } catch (e: Exception) {
+                if (!e.isNetworkError()) _syncError.value = e.message ?: "Sync failed"
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 
@@ -63,7 +83,9 @@ class EventTypesViewModel(
             filterType = filter,
             isLoading = false
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EventTypesUiState())
+    }.combine(_isRefreshing) { state, refreshing -> state.copy(isRefreshing = refreshing) }
+        .combine(_syncError) { state, err -> state.copy(syncError = err) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EventTypesUiState())
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
@@ -72,6 +94,9 @@ class EventTypesViewModel(
     fun setFilterType(filter: String) {
         _filterType.value = filter
     }
+
+    private fun Exception.isNetworkError(): Boolean =
+        this is java.io.IOException || this is java.net.UnknownHostException || message?.contains("Unable to resolve host", ignoreCase = true) == true
 
     fun toggleEventTypeActive(eventType: EventType) {
         viewModelScope.launch {

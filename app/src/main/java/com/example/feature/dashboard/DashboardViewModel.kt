@@ -28,7 +28,14 @@ class DashboardViewModel(
 
     init {
         viewModelScope.launch {
-            repository.seedInitialDataIfEmpty()
+            if (repository.isDemoSession()) {
+                // Demo persona only: seed the showcase data.
+                repository.seedInitialDataIfEmpty()
+            } else {
+                // Signed-in session: purge any demo rows from the cache and
+                // re-point identity at the real account before syncing.
+                runCatching { repository.onSessionEstablished() }
+            }
             // Network-first sync: API → Room. Room keeps serving if offline.
             runCatching { repository.refreshEventTypes() }
             runCatching { repository.refreshBookings() }

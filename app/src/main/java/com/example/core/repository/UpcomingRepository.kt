@@ -32,7 +32,8 @@ import java.util.*
 class UpcomingRepository(
     private val database: UpcomingDatabase,
     private val context: Context,
-    private val api: UpcomingApi? = null
+    private val api: UpcomingApi? = null,
+    private val authTokens: com.example.core.auth.AuthTokenManager? = null
 ) {
     private val userDao = database.userDao()
     private val scheduleDao = database.scheduleDao()
@@ -41,6 +42,11 @@ class UpcomingRepository(
     private val bookingDao = database.bookingDao()
     private val reminderDao = database.reminderDao()
     private val userPreferences = com.example.core.prefs.UserPreferences(context)
+
+    /** True when the app is running the demo persona (no signed-in account).
+     *  Demo seed data (Alex Rivera & co.) must never exist in a real user's
+     *  session, so seeding and demo fallbacks are gated on this. */
+    fun isDemoSession(): Boolean = authTokens?.let { it.isDemo() && !it.isLoggedIn() } ?: true
 
     /** The server identity. Starts at the local seed id and re-points to the
      *  /me user as soon as a refresh lands, so every "primary user" consumer
@@ -114,6 +120,22 @@ class UpcomingRepository(
 
     /** Pull the user settings profile from the API into Room (upsert by id).
      *  Returns true when fresh data landed. */
+    /** Called right after a real sign-up/login (and on cold start of a
+     *  restored session). Purges any demo data that leaked into the cache
+     *  (flagged, or detected from earlier builds) and re-points identity at
+     *  the authenticated user. */
+    suspend fun onSessionEstablished() = withContext(Dispatchers.IO) {
+        val demoRowsPresent = userDao.getAllUsers().any {
+            it.email == "alex.rivera@upcoming.io" || it.email == "sarah.chen@upcoming.io"
+        }
+        if (authTokens?.demoDataSeeded() == true || demoRowsPresent) {
+            database.clearAllTables()
+            authTokens?.markDemoDataSeeded(false)
+        }
+        authTokens?.lastUserId()?.takeIf { it > 0 }?.let { primaryUserId.value = it }
+        runCatching { refreshMe() }
+    }
+
     suspend fun refreshMe(): Boolean = withContext(Dispatchers.IO) {
         val api = api ?: return@withContext false
         try {
@@ -395,12 +417,14 @@ class UpcomingRepository(
 
     suspend fun getPrimaryUser(): User {
         val userEntity = userDao.getUserById(primaryUserId.value)
+        // Neutral placeholder, never a demo persona — a signed-in user must
+        // not see Alex Rivera leaked from the seed data.
         return userEntity?.toDomain() ?: User(
-            id = 1,
-            email = "alex.rivera@upcoming.io",
-            username = "alex",
-            displayName = "Alex Rivera",
-            timezone = "America/New_York"
+            id = primaryUserId.value,
+            email = "",
+            username = "",
+            displayName = "",
+            timezone = "UTC"
         )
     }
 
@@ -887,8 +911,12 @@ class UpcomingRepository(
         markPaid(com.example.core.network.MarkPaidRequest(uid, paymentIntentId))
 
     suspend fun seedInitialDataIfEmpty() = withContext(Dispatchers.IO) {
+        // Demo content only ever exists in a demo session. A signed-in user
+        // gets a clean, server-synced cache — no Alex Rivera, ever.
+        if (!isDemoSession()) return@withContext
         val existingUsers = userDao.getAllUsers()
         if (existingUsers.isNotEmpty()) return@withContext
+        authTokens?.markDemoDataSeeded(true)
 
         // 1. Primary User & Team
         val primaryUserId = userDao.insertUser(

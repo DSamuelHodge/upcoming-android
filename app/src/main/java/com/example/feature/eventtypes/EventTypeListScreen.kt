@@ -36,6 +36,10 @@ fun EventTypeListScreen(
     onOpenBookingFlow: (Long) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.syncError) {
+        uiState.syncError?.let { snackbarHostState.showSnackbar("Sync failed: $it") }
+    }
     var deleteCandidateId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
@@ -79,6 +83,7 @@ fun EventTypeListScreen(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
@@ -147,7 +152,17 @@ fun EventTypeListScreen(
                 }
             }
 
-            if (uiState.eventTypes.isEmpty()) {
+            // Server sync in flight — visible spinner instead of a misleading
+            // empty state while the Cloudflare round-trip lands.
+            if (uiState.isLoading || uiState.isRefreshing) {
+                item {
+                    UpcomingLoadingRow(
+                        label = if (uiState.isRefreshing) "Syncing event types…" else "Loading event types…"
+                    )
+                }
+            }
+
+            if (uiState.eventTypes.isEmpty() && !uiState.isLoading && !uiState.isRefreshing) {
                 item {
                     UpcomingCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -187,7 +202,7 @@ fun EventTypeListScreen(
                 items(uiState.eventTypes, key = { it.id }) { eventType ->
                     EventTypeItemCard(
                         eventType = eventType,
-                        username = uiState.user?.username ?: "alex",
+                        username = uiState.user?.username ?: "",
                         onToggleActive = { viewModel.toggleEventTypeActive(eventType) },
                         onEdit = { onNavigateToEdit(eventType.id) },
                         onDuplicate = { viewModel.duplicateEventType(eventType) },

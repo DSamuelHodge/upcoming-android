@@ -55,6 +55,10 @@ object UpcomingDestinations {
     const val BOOKING_FLOW = "book"
     const val SETTINGS = "settings"
     const val NOTIFICATIONS = "settings/notifications"
+    const val AUTH = "auth"
+    const val TERMS = "legal/terms"
+    const val PRIVACY = "legal/privacy"
+    const val PERMISSIONS = "settings/permissions"
 }
 
 data class GeometricNavItem(
@@ -68,11 +72,17 @@ data class GeometricNavItem(
 fun UpcomingNavHost(
     repository: UpcomingRepository,
     context: android.content.Context,
+    authRepository: com.example.core.auth.AuthRepository,
     navController: NavHostController = rememberNavController(),
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    // Auth gate: resolved synchronously at startup (token restore), so this
+    // decides the start destination before the first frame lands.
+    val authState by authRepository.authState.collectAsState()
+    val authenticated = authState is com.example.core.auth.AuthState.LoggedIn ||
+        authState is com.example.core.auth.AuthState.Demo
 
     val bottomNavItems = listOf(
         GeometricNavItem(
@@ -101,7 +111,7 @@ fun UpcomingNavHost(
         )
     )
 
-    val showBottomBar = currentRoute in listOf(
+    val showBottomBar = authenticated && currentRoute in listOf(
         UpcomingDestinations.DASHBOARD,
         UpcomingDestinations.EVENT_TYPES,
         UpcomingDestinations.AVAILABILITY,
@@ -134,9 +144,39 @@ fun UpcomingNavHost(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = UpcomingDestinations.DASHBOARD,
+            startDestination = if (authenticated) UpcomingDestinations.DASHBOARD else UpcomingDestinations.AUTH,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // ---- Auth gate (outside the bottom bar) -----------------------
+            composable(UpcomingDestinations.AUTH) {
+                val viewModel = rememberViewModel { com.example.feature.auth.AuthViewModel(authRepository) }
+                com.example.feature.auth.AuthScreen(
+                    viewModel = viewModel,
+                    onAuthenticated = {
+                        navController.navigate(UpcomingDestinations.DASHBOARD) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onOpenTerms = { navController.navigate(UpcomingDestinations.TERMS) },
+                    onOpenPrivacy = { navController.navigate(UpcomingDestinations.PRIVACY) }
+                )
+            }
+
+            composable(UpcomingDestinations.TERMS) {
+                com.example.feature.legal.LegalScreen(
+                    title = "Terms of Use",
+                    isTerms = true,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(UpcomingDestinations.PRIVACY) {
+                com.example.feature.legal.LegalScreen(
+                    title = "Privacy Policy",
+                    isTerms = false,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
             // 1. Host Dashboard
             composable(UpcomingDestinations.DASHBOARD) {
                 val viewModel = rememberViewModel { DashboardViewModel(repository) }
@@ -239,10 +279,24 @@ fun UpcomingNavHost(
 
             // 8. Settings Hub
             composable(UpcomingDestinations.SETTINGS) {
-                val viewModel = rememberViewModel { SettingsViewModel(repository) }
+                val viewModel = rememberViewModel { SettingsViewModel(repository, authRepository) }
                 SettingsScreen(
                     viewModel = viewModel,
                     onNavigateToNotifications = { navController.navigate(UpcomingDestinations.NOTIFICATIONS) },
+                    onNavigateBack = { navController.popBackStack() },
+                    onLoggedOut = {
+                        navController.navigate(UpcomingDestinations.AUTH) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateToPermissions = { navController.navigate(UpcomingDestinations.PERMISSIONS) },
+                    onNavigateToTerms = { navController.navigate(UpcomingDestinations.TERMS) },
+                    onNavigateToPrivacy = { navController.navigate(UpcomingDestinations.PRIVACY) }
+                )
+            }
+
+            composable(UpcomingDestinations.PERMISSIONS) {
+                com.example.feature.permissions.PermissionsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
