@@ -181,6 +181,20 @@ class UpcomingRepository(
         }
     }
 
+    /** Registers/refreshes the FCM push token in metadata.fcmToken
+     *  (api-contract 4.4). No-op when signed out, in demo, or when
+     *  the server already has this token. Soft-fail: never throws. */
+    suspend fun registerFcmToken(token: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val tokens = authTokens ?: return@withContext false
+            if (!tokens.isLoggedIn() || tokens.isDemo()) return@withContext false
+            val current = currentMetadata()
+            if (current.fcmToken == token) return@withContext true
+            runCatching {
+                updateProfile(metadata = current.copy(fcmToken = token))
+            }.isSuccess
+        }
+
     /** Server-backed profile update: PATCH /me then mirror into Room. */
     suspend fun updateProfile(
         displayName: String? = null,

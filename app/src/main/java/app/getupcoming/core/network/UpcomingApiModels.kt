@@ -186,6 +186,9 @@ data class UserMetadataDto(
     val locations: LocationsMapDto? = null,
     val defaultLocationType: String? = null,
     val prefs: UserPrefsDto? = null,
+    // FCM push registration token (api-contract 4.4;
+    // overwritten on token refresh, cleared server-side when stale).
+    val fcmToken: String? = null,
     val role: String? = null,
     val company: String? = null
 )
