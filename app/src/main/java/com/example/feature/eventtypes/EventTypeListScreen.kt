@@ -202,7 +202,7 @@ fun EventTypeListScreen(
                 items(uiState.eventTypes, key = { it.id }) { eventType ->
                     EventTypeItemCard(
                         eventType = eventType,
-                        username = uiState.user?.username ?: "alex",
+                        username = uiState.user?.username ?: "",
                         onToggleActive = { viewModel.toggleEventTypeActive(eventType) },
                         onEdit = { onNavigateToEdit(eventType.id) },
                         onDuplicate = { viewModel.duplicateEventType(eventType) },

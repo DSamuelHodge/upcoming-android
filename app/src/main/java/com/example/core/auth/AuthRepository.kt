@@ -13,10 +13,13 @@ import kotlinx.coroutines.withContext
 
 /** Owns the auth lifecycle: restore-on-launch, signup/login/logout, and the
  *  [AuthState] the splash gate routes on. Server errors surface as Result
- *  failures with the API's message (e.g. "email already registered"). */
+ *  failures with the API's message (e.g. "email already registered").
+ *  [onSessionEstablished] fires after every signup/login so the host app can
+ *  purge demo data and re-point identity at the real account. */
 class AuthRepository(
     private val api: UpcomingApi,
-    private val tokens: AuthTokenManager
+    private val tokens: AuthTokenManager,
+    private val onSessionEstablished: suspend () -> Unit = { }
 ) {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
@@ -41,6 +44,7 @@ class AuthRepository(
             val auth = api.signUp(SignUpRequest(email.trim(), password, username.trim(), displayName?.trim(), timezone))
             tokens.save(auth)
             _authState.value = AuthState.LoggedIn(auth.user.id)
+            runCatching { onSessionEstablished() }
             auth.user
         }
     }
@@ -51,6 +55,7 @@ class AuthRepository(
                 val auth = api.login(LoginRequest(email.trim(), password))
                 tokens.save(auth)
                 _authState.value = AuthState.LoggedIn(auth.user.id)
+                runCatching { onSessionEstablished() }
                 auth.user
             }
         }

@@ -35,14 +35,18 @@ class MainActivity : ComponentActivity() {
 
         val db = UpcomingDatabase.getInstance(applicationContext)
         val tokens = AuthTokenManager(applicationContext)
-        authRepository = AuthRepository(
-            api = UpcomingApiClient.create(auth = tokens),
-            tokens = tokens
-        )
+        val api = UpcomingApiClient.create(auth = tokens)
         repository = UpcomingRepository(
             database = db,
             context = applicationContext,
-            api = UpcomingApiClient.create(auth = tokens)
+            api = api,
+            authTokens = tokens
+        )
+        authRepository = AuthRepository(
+            api = api,
+            tokens = tokens,
+            // A real session must never inherit the demo persona's data.
+            onSessionEstablished = { repository.onSessionEstablished() }
         )
 
         // One frame is enough for the gate to pick its start destination.

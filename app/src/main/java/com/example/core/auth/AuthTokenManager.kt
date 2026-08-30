@@ -67,6 +67,14 @@ class AuthTokenManager(private val context: Context) {
         prefs.edit().clear().putBoolean(KEY_DEMO, true).apply()
     }
 
+    /** Tracks whether demo seed rows exist in the local Room cache, so a
+     *  later sign-in can purge them (demo data must never bleed into a real
+     *  account's session). */
+    fun demoDataSeeded(): Boolean = prefs.getBoolean(KEY_DEMO_DATA, false)
+    fun markDemoDataSeeded(seeded: Boolean) {
+        prefs.edit().putBoolean(KEY_DEMO_DATA, seeded).apply()
+    }
+
     fun clear() {
         prefs.edit().clear().apply()
     }
@@ -106,5 +114,6 @@ class AuthTokenManager(private val context: Context) {
         const val KEY_REFRESH = "refresh_token"
         const val KEY_USER_ID = "user_id"
         const val KEY_DEMO = "demo_mode"
+        const val KEY_DEMO_DATA = "demo_data_in_cache"
     }
 }

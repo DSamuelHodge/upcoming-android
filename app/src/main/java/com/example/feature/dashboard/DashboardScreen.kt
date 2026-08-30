@@ -119,7 +119,7 @@ fun DashboardScreen(
                 HostHeaderCard(
                     user = uiState.user,
                     onShareProfile = {
-                        val shareUrl = "https://upcoming.io/${uiState.user?.username ?: "alex"}"
+                        val shareUrl = "https://upcoming.io/${uiState.user?.username ?: ""}"
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, "Book time with me on Upcoming: $shareUrl")
@@ -229,7 +229,7 @@ fun DashboardScreen(
             items(uiState.eventTypes) { eventType ->
                 GeometricEventTypeCard(
                     eventType = eventType,
-                    username = uiState.user?.username ?: "alex",
+                    username = uiState.user?.username ?: "",
                     onBookNow = { onOpenBookingFlow(eventType.id) }
                 )
             }
@@ -282,7 +282,7 @@ fun HostHeaderCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "upcoming.io/${user?.username ?: "alex"}",
+                            text = "upcoming.io/${user?.username ?: ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
