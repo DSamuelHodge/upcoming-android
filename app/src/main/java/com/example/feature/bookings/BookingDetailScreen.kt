@@ -59,7 +59,7 @@ fun BookingDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = UpcomingTokens.BrandBlue)
+                CircularProgressIndicator(color = UpcomingTokens.BrandPrimary)
             }
         } else {
             val b = item.booking
@@ -100,7 +100,7 @@ fun BookingDetailScreen(
 
                         Text(
                             text = item.eventType?.title ?: "Meeting",
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
@@ -113,13 +113,13 @@ fun BookingDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.CalendarToday,
                                 contentDescription = null,
-                                tint = UpcomingTokens.BrandBlue,
+                                tint = UpcomingTokens.BrandPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = fullDateFmt.format(startUtc),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
+                                style = UpcomingTextStyles.monoData,
+                                color = Ink
                             )
                         }
 
@@ -132,13 +132,13 @@ fun BookingDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = null,
-                                tint = UpcomingTokens.BrandBlue,
+                                tint = UpcomingTokens.BrandPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "${timeFmt.format(startUtc)} – ${timeFmt.format(endUtc)} (EDT)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                style = UpcomingTextStyles.monoData,
+                                color = Ink
                             )
                         }
 
@@ -163,7 +163,7 @@ fun BookingDetailScreen(
                     UpcomingCard {
                         Text(
                             text = "Invitee Information",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
@@ -186,7 +186,7 @@ fun BookingDetailScreen(
                         UpcomingCard {
                             Text(
                                 text = "Stripe Payment Summary",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(12.dp))
@@ -215,7 +215,7 @@ fun BookingDetailScreen(
                         UpcomingCard {
                             Text(
                                 text = "Actions & Reminders",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(12.dp))
@@ -258,8 +258,8 @@ fun BookingDetailScreen(
                                 onClick = { showCancelDialog = true },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = UpcomingTokens.RadiusMedium,
-                                border = BorderStroke(1.dp, AccentRose),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRose)
+                                border = BorderStroke(1.dp, SemanticError),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = SemanticError)
                             ) {
                                 Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -289,7 +289,7 @@ fun BookingDetailScreen(
                             Toast.makeText(context, "Meeting cancelled & slot released.", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = AccentRose)
+                    colors = ButtonDefaults.textButtonColors(contentColor = SemanticError)
                 ) {
                     Text("Confirm Cancellation")
                 }

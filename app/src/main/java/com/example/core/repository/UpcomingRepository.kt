@@ -5,6 +5,16 @@ import com.example.core.database.UpcomingDatabase
 import com.example.core.database.entity.*
 import com.example.core.engine.*
 import com.example.core.model.*
+import com.example.core.network.ApiException
+import com.example.core.network.AttendeeWireDto
+import com.example.core.network.BookingResultDto
+import com.example.core.network.BookingRowDto
+import com.example.core.network.CreateBookingRequest
+import com.example.core.network.EventTypeDto
+import com.example.core.network.LocationDto
+import com.example.core.network.UpcomingApi
+import com.example.core.network.apiCall
+import com.example.core.network.isNetworkError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -14,7 +24,8 @@ import java.util.*
 
 class UpcomingRepository(
     private val database: UpcomingDatabase,
-    private val context: Context
+    private val context: Context,
+    private val api: UpcomingApi? = null
 ) {
     private val userDao = database.userDao()
     private val scheduleDao = database.scheduleDao()
@@ -38,6 +49,100 @@ class UpcomingRepository(
     val allReminders: Flow<List<NotificationReminder>> = reminderDao.getAllRemindersFlow().map { list ->
         list.map { it.toDomain() }
     }
+
+    // -----------------------------------------------------------------------
+    // Remote refresh — network-first, Room as the offline cache. Flows above
+    // stay Room-backed, so the UI keeps rendering from cache when offline.
+    // -----------------------------------------------------------------------
+
+    /** Pull event types from the API into Room (full-replace: local leftovers
+     *  not known remotely are deleted, so stale locally-seeded ids can never
+     *  reach the server). Returns true when fresh data landed. */
+    suspend fun refreshEventTypes(): Boolean = withContext(Dispatchers.IO) {
+        val api = api ?: return@withContext false
+        try {
+            val remote = apiCall { api.getEventTypes() }
+            val remoteIds = remote.map { it.id }.toSet()
+            for (dto in remote) {
+                val existing = eventTypeDao.getEventTypeById(dto.id)
+                val entity = dto.toEntity()
+                if (existing != null) {
+                    eventTypeDao.updateEventType(entity)
+                } else {
+                    eventTypeDao.insertEventType(entity)
+                }
+            }
+            // Purge locally-seeded leftovers whose ids the server doesn't know.
+            val localIds = eventTypeDao.getAllEventTypesFlow().first().map { it.id }
+            for (id in localIds) {
+                if (id !in remoteIds) eventTypeDao.deleteEventTypeById(id)
+            }
+            true
+        } catch (e: Exception) {
+            if (!e.isNetworkError()) throw e
+            false
+        }
+    }
+
+    /** Pull bookings from the API into Room (upsert by uid). */
+    suspend fun refreshBookings(): Boolean = withContext(Dispatchers.IO) {
+        val api = api ?: return@withContext false
+        try {
+            val remote = apiCall { api.getBookings() }
+            for (row in remote) {
+                upsertBookingRow(row)
+            }
+            true
+        } catch (e: Exception) {
+            if (!e.isNetworkError()) throw e
+            false
+        }
+    }
+
+    private suspend fun upsertBookingRow(row: BookingRowDto) {
+        val existing = bookingDao.getBookingByUid(row.uid)
+        val entity = BookingEntity(
+            id = existing?.id ?: 0,
+            uid = row.uid,
+            eventTypeId = row.eventTypeId,
+            hostUserId = row.hostUserId,
+            startTimeUtc = row.startTimeUtc,
+            endTimeUtc = row.endTimeUtc,
+            bufferBefore = row.bufferBefore,
+            bufferAfter = row.bufferAfter,
+            status = row.status,
+            cancelledAt = row.cancelledAt,
+            idempotencyKey = row.idempotencyKey.ifBlank { existing?.idempotencyKey ?: row.uid },
+            locationJson = row.location ?: existing?.locationJson,
+            paid = row.paid,
+            paymentIntentId = row.paymentIntentId,
+            createdAtUtc = row.createdAt ?: existing?.createdAtUtc ?: ""
+        )
+        if (existing != null) {
+            bookingDao.updateBooking(entity)
+        } else {
+            bookingDao.insertBooking(entity)
+        }
+    }
+
+    private fun EventTypeDto.toEntity(): EventTypeEntity = EventTypeEntity(
+        id = id,
+        ownerUserId = ownerUserId,
+        slug = slug,
+        title = title,
+        description = description,
+        lengthMinutes = lengthMinutes,
+        slotIntervalMinutes = slotIntervalMinutes,
+        bufferBefore = bufferBefore,
+        bufferAfter = bufferAfter,
+        schedulingType = schedulingType,
+        locationsJson = locations,
+        minBookingNotice = minBookingNotice,
+        priceInCents = priceInCents,
+        currency = currency,
+        colorHex = colorHex,
+        isActive = isActive
+    )
 
     suspend fun getPrimaryUser(): User {
         val userEntity = userDao.getUserById(1)
@@ -157,6 +262,41 @@ class UpcomingRepository(
         rangeEndUtc: Date,
         inviteeTimezone: String = "America/New_York"
     ): List<OfferedSlot> = withContext(Dispatchers.IO) {
+        val outTz = TimeZone.getTimeZone(inviteeTimezone)
+        val timeDisplayFormat = java.text.SimpleDateFormat("h:mm a", Locale.US).apply {
+            timeZone = outTz
+        }
+
+        // Network-first: the server's availability engine owns DST/min-notice/
+        // slot-grid logic; Room only serves as fallback when the API is down.
+        if (api != null) {
+            try {
+                val response = apiCall {
+                    api.getAvailability(
+                        eventTypeId = eventType.id,
+                        rangeStartUtc = SchedulingEngine.formatIsoUtc(rangeStartUtc),
+                        rangeEndUtc = SchedulingEngine.formatIsoUtc(rangeEndUtc)
+                    )
+                }
+                return@withContext response.slots.map { slot ->
+                    OfferedSlot(
+                        startUtc = slot.startUtc,
+                        endUtc = slot.endUtc,
+                        schedulingType = slot.schedulingType,
+                        attendingHostUserIds = slot.attendingHostUserIds ?: emptyList(),
+                        displayLocalTime = timeDisplayFormat.format(SchedulingEngine.parseIsoUtc(slot.startUtc))
+                    )
+                }
+            } catch (e: Exception) {
+                if (!e.isNetworkError()) {
+                    // A definitive server answer (validation, not found) should
+                    // not silently degrade to the local engine's view.
+                    throw e
+                }
+                // else: fall through to offline fallback below
+            }
+        }
+
         val hosts = userDao.getAllUsers().map { it.toDomain() }
         val schedulesMap = mutableMapOf<Long, Schedule>()
         val availabilityRulesMap = mutableMapOf<Long, List<AvailabilityRule>>()
@@ -182,12 +322,6 @@ class UpcomingRepository(
             now = Date()
         )
 
-        // Format for display
-        val outTz = TimeZone.getTimeZone(inviteeTimezone)
-        val timeDisplayFormat = java.text.SimpleDateFormat("h:mm a", Locale.US).apply {
-            timeZone = outTz
-        }
-
         rawSlots.map { slot ->
             val d = SchedulingEngine.parseIsoUtc(slot.startUtc)
             slot.copy(displayLocalTime = timeDisplayFormat.format(d))
@@ -209,7 +343,7 @@ class UpcomingRepository(
         paymentIntentId: String? = null
     ): Result<Booking> = withContext(Dispatchers.IO) {
         try {
-            // Check idempotency first (replay)
+            // Replay within the local cache first (works offline).
             val existing = bookingDao.getBookingByIdempotencyKey(idempotencyKey)
             if (existing != null) {
                 return@withContext Result.success(existing.toDomain())
@@ -218,13 +352,38 @@ class UpcomingRepository(
             val eventType = eventTypeDao.getEventTypeById(eventTypeId)?.toDomain()
                 ?: return@withContext Result.failure(Exception("Event type not found"))
 
-            val hostId = eventType.ownerUserId
+            // Remote-first write: the handler owns slot-grid/min-notice/buffer
+            // conflict logic and Daily room minting. Local writes are only
+            // used when no API client is configured.
+            if (api != null) {
+                val result = apiCall {
+                    api.createBooking(
+                        CreateBookingRequest(
+                            eventTypeId = eventTypeId,
+                            slotStartUtc = slotStartUtc,
+                            slotEndUtc = slotEndUtc,
+                            location = parseChosenLocation(locationJson),
+                            attendee = AttendeeWireDto(
+                                email = attendeeEmail,
+                                name = attendeeName,
+                                timezone = attendeeTimezone,
+                                phone = attendeePhone
+                            ),
+                            idempotencyKey = idempotencyKey
+                        )
+                    )
+                }
+                val createdBooking = storeRemoteBooking(result, eventType)
+                schedulePostBookingNotifications(createdBooking, eventType, attendeeName, attendeeEmail)
+                return@withContext Result.success(createdBooking)
+            }
+
             val uid = UUID.randomUUID().toString().replace("-", "").take(16)
 
             val bookingEntity = BookingEntity(
                 uid = uid,
                 eventTypeId = eventTypeId,
-                hostUserId = hostId,
+                hostUserId = eventType.ownerUserId,
                 startTimeUtc = slotStartUtc,
                 endTimeUtc = slotEndUtc,
                 bufferBefore = eventType.bufferBefore,
@@ -251,38 +410,7 @@ class UpcomingRepository(
             bookingDao.insertAttendee(attendeeEntity)
 
             val createdBooking = bookingEntity.copy(id = bookingId).toDomain()
-
-            // Schedule exact alarm reminder 15 mins prior
-            NotificationAndReminderManager.scheduleExactAlarm(
-                context = context,
-                booking = createdBooking,
-                eventType = eventType,
-                attendeeName = attendeeName,
-                reminderMinutesBefore = 15
-            )
-
-            // Record reminder in DB
-            val reminderTriggerTimeMs = SchedulingEngine.parseIsoUtc(slotStartUtc).time - (15 * 60 * 1000L)
-            reminderDao.insertReminder(
-                ReminderEntity(
-                    bookingId = bookingId,
-                    type = "exact_alarm",
-                    triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(reminderTriggerTimeMs)),
-                    title = "Upcoming: ${eventType.title}",
-                    body = "Meeting with ${attendeeName ?: attendeeEmail} starting in 15 minutes",
-                    status = "scheduled",
-                    isFired = false,
-                    createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
-                )
-            )
-
-            // Trigger simulated real-time FCM notification
-            NotificationAndReminderManager.triggerFcmNotification(
-                context = context,
-                title = "New Booking Confirmed!",
-                body = "${attendeeName ?: attendeeEmail} booked ${eventType.title} on ${slotStartUtc.take(10)}",
-                bookingUid = uid
-            )
+            schedulePostBookingNotifications(createdBooking, eventType, attendeeName, attendeeEmail)
 
             Result.success(createdBooking)
         } catch (e: Exception) {
@@ -290,9 +418,128 @@ class UpcomingRepository(
         }
     }
 
+    /** Alarm + reminder-row + FCM-style notification, shared by the remote and
+     *  local booking paths. */
+    private suspend fun schedulePostBookingNotifications(
+        booking: Booking,
+        eventType: EventType,
+        attendeeName: String?,
+        attendeeEmail: String
+    ) {
+        // Schedule exact alarm reminder 15 mins prior
+        NotificationAndReminderManager.scheduleExactAlarm(
+            context = context,
+            booking = booking,
+            eventType = eventType,
+            attendeeName = attendeeName,
+            reminderMinutesBefore = 15
+        )
+
+        // Record reminder in DB
+        val reminderTriggerTimeMs =
+            SchedulingEngine.parseIsoUtc(booking.startTimeUtc).time - (15 * 60 * 1000L)
+        reminderDao.insertReminder(
+            ReminderEntity(
+                bookingId = booking.id,
+                type = "exact_alarm",
+                triggerTimeUtc = SchedulingEngine.formatIsoUtc(Date(reminderTriggerTimeMs)),
+                title = "Upcoming: ${eventType.title}",
+                body = "Meeting with ${attendeeName ?: attendeeEmail} starting in 15 minutes",
+                status = "scheduled",
+                isFired = false,
+                createdTimeUtc = SchedulingEngine.formatIsoUtc(Date())
+            )
+        )
+
+        // Trigger simulated real-time FCM notification
+        NotificationAndReminderManager.triggerFcmNotification(
+            context = context,
+            title = "New Booking Confirmed!",
+            body = "${attendeeName ?: attendeeEmail} booked ${eventType.title} on ${booking.startTimeUtc.take(10)}",
+            bookingUid = booking.uid
+        )
+    }
+
+    /** Persists a handler BookingResult into Room (booking + attendee rows) and
+     *  returns it as a domain Booking. */
+    private suspend fun storeRemoteBooking(
+        result: BookingResultDto,
+        eventType: EventType
+    ): Booking {
+        val existing = bookingDao.getBookingByUid(result.uid)
+        val entity = BookingEntity(
+            id = existing?.id ?: 0,
+            uid = result.uid,
+            eventTypeId = result.eventTypeId,
+            hostUserId = result.hostUserId,
+            startTimeUtc = result.startUtc,
+            endTimeUtc = result.endUtc,
+            bufferBefore = eventType.bufferBefore,
+            bufferAfter = eventType.bufferAfter,
+            status = result.status,
+            cancelledAt = null,
+            idempotencyKey = existing?.idempotencyKey ?: result.uid,
+            locationJson = result.location?.let { locationJson(it) } ?: existing?.locationJson,
+            paid = existing?.paid ?: false,
+            paymentIntentId = existing?.paymentIntentId,
+            createdAtUtc = existing?.createdAtUtc ?: SchedulingEngine.formatIsoUtc(Date())
+        )
+        val bookingId = if (existing != null) {
+            bookingDao.updateBooking(entity)
+            existing.id
+        } else {
+            bookingDao.insertBooking(entity)
+        }
+
+        result.attendee?.let { attendee ->
+            val existingAttendee = bookingDao.getAttendeeForBooking(bookingId)
+            if (existingAttendee == null) {
+                bookingDao.insertAttendee(
+                    AttendeeEntity(
+                        bookingId = bookingId,
+                        email = attendee.email,
+                        name = attendee.name,
+                        timezone = attendee.timezone,
+                        phone = attendee.phone,
+                        notes = null
+                    )
+                )
+            }
+        }
+
+        return entity.copy(id = bookingId).toDomain()
+    }
+
+    /** Parses the CHOSEN-location JSON (a single object) into the wire shape. */
+    private fun parseChosenLocation(locationJson: String): LocationDto {
+        val adapter = com.example.core.network.UpcomingApiClient.moshi
+            .adapter(LocationDto::class.java).lenient()
+        return adapter.fromJson(locationJson)
+            ?: throw IllegalArgumentException("Invalid location JSON: $locationJson")
+    }
+
+    private fun locationJson(location: LocationDto): String {
+        val adapter = com.example.core.network.UpcomingApiClient.moshi
+            .adapter(LocationDto::class.java).lenient()
+        return adapter.toJson(location)
+    }
+
     suspend fun cancelBooking(uid: String, reason: String = "Cancelled by user"): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val booking = bookingDao.getBookingByUid(uid) ?: return@withContext Result.failure(Exception("Booking not found"))
+
+            // Remote-first: the handler prunes occupancy ticks and deletes
+            // minted Daily rooms in the same transaction. 404 means the
+            // booking never existed server-side (or was already pruned) —
+            // safe to reconcile the local cache either way.
+            if (api != null) {
+                try {
+                    apiCall { api.cancelBooking(com.example.core.network.CancelBookingRequest(uid = uid)) }
+                } catch (e: ApiException.NotFound) {
+                    // fall through to local reconcile
+                }
+            }
+
             val nowUtc = SchedulingEngine.formatIsoUtc(Date())
             bookingDao.cancelBookingByUid(uid, nowUtc)
 
@@ -313,6 +560,66 @@ class UpcomingRepository(
             Result.failure(e)
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Payments (book → pay → mark-paid). Card data goes device → Stripe
+    // directly (publishable key only); the server verifies the PaymentIntent
+    // before flipping `paid`.
+    // -----------------------------------------------------------------------
+
+    suspend fun createPaymentIntent(eventTypeId: Long): Result<com.example.core.network.CreateIntentResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching { apiCall { api!!.createPaymentIntent(com.example.core.network.CreateIntentRequest(eventTypeId)) } }
+        }
+
+    /** Creates a PaymentMethod from raw card fields (tokenized client-side by
+     *  the Stripe SDK) and confirms the PaymentIntent. Returns the PI id. */
+    suspend fun confirmStripePayment(
+        clientSecret: String,
+        cardNumber: String,
+        expMonth: Int,
+        expYear: Int,
+        cvc: String,
+        cardholderName: String?
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val stripe = com.stripe.android.Stripe(context, com.example.BuildConfig.STRIPE_PUBLISHABLE_KEY)
+            val card = com.stripe.android.model.PaymentMethodCreateParams.Card.Builder()
+                .setNumber(cardNumber.replace(" ", ""))
+                .setExpiryMonth(expMonth)
+                .setExpiryYear(expYear)
+                .setCvc(cvc)
+                .build()
+            val params = com.stripe.android.model.PaymentMethodCreateParams.create(
+                card = card,
+                billingDetails = com.stripe.android.model.PaymentMethod.BillingDetails(name = cardholderName)
+            )
+            val paymentMethod = stripe.createPaymentMethodSynchronous(params)
+            val confirmParams = com.stripe.android.model.ConfirmPaymentIntentParams
+                .createWithPaymentMethodId(paymentMethod.id!!, clientSecret)
+            val intent = stripe.confirmPaymentIntentSynchronous(confirmParams)
+            if (intent.status != com.stripe.android.model.StripeIntent.Status.Succeeded) {
+                throw IllegalStateException("Payment not completed (status: ${intent.status})")
+            }
+            intent.id ?: throw IllegalStateException("Payment succeeded without an id")
+        }
+    }
+
+    suspend fun markBookingPaid(uid: String, paymentIntentId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                apiCall { api!!.markBookingPaidInternal(uid, paymentIntentId) }
+                val booking = bookingDao.getBookingByUid(uid)
+                if (booking != null) {
+                    bookingDao.updateBooking(
+                        booking.copy(paid = true, paymentIntentId = paymentIntentId)
+                    )
+                }
+            }
+        }
+
+    private suspend fun com.example.core.network.UpcomingApi.markBookingPaidInternal(uid: String, paymentIntentId: String) =
+        markPaid(com.example.core.network.MarkPaidRequest(uid, paymentIntentId))
 
     suspend fun seedInitialDataIfEmpty() = withContext(Dispatchers.IO) {
         val existingUsers = userDao.getAllUsers()

@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,13 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.theme.UpcomingTextStyles
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +51,7 @@ fun UpcomingTopBar(
                     ) {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = (-0.25).sp
-                            ),
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -74,7 +69,6 @@ fun UpcomingTopBar(
                             )
                         }
                     } else {
-                        // Geometric Hamburger/Square Menu Icon
                         Box(
                             modifier = Modifier
                                 .padding(start = 12.dp, end = 4.dp)
@@ -97,8 +91,8 @@ fun UpcomingTopBar(
                     if (userInitials != null) {
                         Surface(
                             shape = CircleShape,
-                            color = GeoAvatarBg,
-                            border = BorderStroke(1.dp, GeoAvatarBorder),
+                            color = SurfaceCard,
+                            border = BorderStroke(1.dp, Hairline),
                             modifier = Modifier
                                 .padding(end = 12.dp)
                                 .size(38.dp)
@@ -106,8 +100,8 @@ fun UpcomingTopBar(
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = userInitials,
-                                    color = GeoAvatarText,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    color = Ink,
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
@@ -117,7 +111,6 @@ fun UpcomingTopBar(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
-            // Geometric Subtle Divider
             HorizontalDivider(
                 thickness = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant
@@ -141,22 +134,19 @@ fun GeometricSectionHeader(
     ) {
         Text(
             text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.2.sp
-            ),
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (!tag.isNullOrBlank()) {
             Surface(
                 shape = UpcomingTokens.RadiusFull,
-                color = GeoPrimaryContainerLight,
-                border = BorderStroke(1.dp, GeoBorderSubtleLight)
+                color = SurfaceCard,
+                border = BorderStroke(1.dp, HairlineSoft)
             ) {
                 Text(
                     text = tag,
-                    color = GeoPrimary,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = Ink,
+                    style = UpcomingTextStyles.caption,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
@@ -169,7 +159,7 @@ fun UpcomingCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     borderColor: Color = MaterialTheme.colorScheme.outline,
-    backgroundColor: Color = MaterialTheme.colorScheme.surface,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     padding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -215,12 +205,12 @@ fun UpcomingPrimaryButton(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .minimumInteractiveComponentSize(),
-        shape = UpcomingTokens.RadiusLarge,
+        shape = UpcomingTokens.RadiusMedium,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.4f),
-            disabledContentColor = contentColor.copy(alpha = 0.7f)
+            disabledContainerColor = PrimaryCoralDisabled,
+            disabledContentColor = MutedSoftText
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
     ) {
@@ -241,7 +231,7 @@ fun UpcomingPrimaryButton(
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+            style = MaterialTheme.typography.labelLarge
         )
     }
 }
@@ -261,7 +251,7 @@ fun UpcomingSecondaryButton(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .minimumInteractiveComponentSize(),
-        shape = UpcomingTokens.RadiusLarge,
+        shape = UpcomingTokens.RadiusMedium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -277,7 +267,7 @@ fun UpcomingSecondaryButton(
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+            style = MaterialTheme.typography.labelLarge
         )
     }
 }
@@ -287,26 +277,39 @@ fun StatusBadge(
     status: String,
     modifier: Modifier = Modifier
 ) {
-    val (bgColor, textColor, textLabel) = when (status.lowercase()) {
-        "accepted" -> Triple(GeoGreenLight, GeoGreen, "Confirmed")
-        "pending" -> Triple(GeoAmberLight, GeoAmber, "Pending")
-        "cancelled" -> Triple(GeoRoseLight, GeoRose, "Cancelled")
-        "individual" -> Triple(GeoPrimaryContainerLight, GeoPrimary, "1-on-1")
-        "round_robin" -> Triple(GeoPurpleLight, GeoPurple, "Round Robin")
-        "collective" -> Triple(GeoAmberLight, GeoAmber, "Collective")
-        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, status)
+    // Doc: badge-status = dot + label, DM Mono 12sp
+    val dotColor = when (status.lowercase()) {
+        "accepted" -> SemanticSuccess
+        "pending" -> AccentAmber
+        "cancelled" -> SemanticError
+        "individual" -> PrimaryCoral
+        "round_robin" -> AccentTeal
+        "collective" -> AccentAmber
+        else -> MutedSoftText
+    }
+    val textLabel = when (status.lowercase()) {
+        "accepted" -> "Confirmed"
+        "individual" -> "1-on-1"
+        "round_robin" -> "Round Robin"
+        "collective" -> "Collective"
+        else -> status.replaceFirstChar { it.uppercase() }
     }
 
-    Surface(
+    Row(
         modifier = modifier,
-        shape = UpcomingTokens.RadiusFull,
-        color = bgColor
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
         Text(
             text = textLabel,
-            color = textColor,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            color = BodyText,
+            style = UpcomingTextStyles.monoLabel
         )
     }
 }
@@ -318,11 +321,11 @@ fun LocationBadge(
     modifier: Modifier = Modifier
 ) {
     val (icon, color, defaultText) = when {
-        locationType.contains("daily", ignoreCase = true) -> Triple(Icons.Default.Videocam, UpcomingTokens.DailyVideoPurple, "Daily.co Video")
-        locationType.contains("meet", ignoreCase = true) -> Triple(Icons.Default.VideoCall, UpcomingTokens.GoogleMeetGreen, "Google Meet")
-        locationType.contains("phone", ignoreCase = true) -> Triple(Icons.Default.Phone, UpcomingTokens.PhoneOrange, "Phone Call")
-        locationType.contains("person", ignoreCase = true) -> Triple(Icons.Default.Place, UpcomingTokens.InPersonTeal, "In Person")
-        else -> Triple(Icons.Default.Link, UpcomingTokens.BrandBlue, "Virtual Meeting")
+        locationType.contains("daily", ignoreCase = true) -> Triple(Icons.Default.Videocam, UpcomingTokens.DailyVideoAccent, "Daily.co Video")
+        locationType.contains("meet", ignoreCase = true) -> Triple(Icons.Default.VideoCall, UpcomingTokens.GoogleMeetAccent, "Google Meet")
+        locationType.contains("phone", ignoreCase = true) -> Triple(Icons.Default.Phone, UpcomingTokens.PhoneAccent, "Phone Call")
+        locationType.contains("person", ignoreCase = true) -> Triple(Icons.Default.Place, UpcomingTokens.InPersonAccent, "In Person")
+        else -> Triple(Icons.Default.Link, UpcomingTokens.VirtualAccent, "Virtual Meeting")
     }
 
     Surface(
@@ -343,7 +346,7 @@ fun LocationBadge(
             )
             Text(
                 text = label?.ifBlank { defaultText } ?: defaultText,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                style = UpcomingTextStyles.caption,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -377,15 +380,52 @@ fun ShareLinkButton(
             Icon(
                 imageVector = Icons.Default.ContentCopy,
                 contentDescription = "Copy link",
-                tint = MaterialTheme.colorScheme.primary,
+                tint = PrimaryCoral,
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = "Copy link",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary
+                style = UpcomingTextStyles.caption,
+                color = PrimaryCoral
             )
         }
     }
 }
 
+/**
+ * Time / date label in DM Mono 12sp with tabular numbers (colors.label).
+ * Use for every HH:MM, date, and data-metric display.
+ */
+@Composable
+fun TimeLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = MutedText,
+    textAlign: TextAlign? = null
+) {
+    Text(
+        text = text,
+        style = UpcomingTextStyles.monoLabel,
+        color = color,
+        textAlign = textAlign,
+        modifier = modifier
+    )
+}
+
+/**
+ * Editorial callout in Instrument Serif italic 16sp (typography.serif-italic).
+ * Rare accent — use only for quotes and editorial moments.
+ */
+@Composable
+fun SerifCallout(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Ink
+) {
+    Text(
+        text = text,
+        style = UpcomingTextStyles.serifItalic,
+        color = color,
+        modifier = modifier
+    )
+}

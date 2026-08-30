@@ -20,6 +20,12 @@ class EventTypesViewModel(
     private val repository: UpcomingRepository
 ) : ViewModel() {
 
+    init {
+        viewModelScope.launch {
+            runCatching { repository.refreshEventTypes() }
+        }
+    }
+
     private val _searchQuery = MutableStateFlow("")
     private val _filterType = MutableStateFlow("ALL")
 

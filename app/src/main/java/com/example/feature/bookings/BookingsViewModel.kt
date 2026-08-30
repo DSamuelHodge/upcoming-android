@@ -31,6 +31,12 @@ class BookingsViewModel(
     private val context: Context
 ) : ViewModel() {
 
+    init {
+        viewModelScope.launch {
+            runCatching { repository.refreshBookings() }
+        }
+    }
+
     private val _selectedTab = MutableStateFlow(0)
     private val _searchQuery = MutableStateFlow("")
 

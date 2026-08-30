@@ -90,8 +90,8 @@ fun DashboardScreen(
                         onNavigateToEventTypes()
                     }
                 },
-                containerColor = GeoPrimaryContainerLight,
-                contentColor = GeoOnPrimaryContainerLight,
+                containerColor = SurfaceCreamStrong,
+                contentColor = Ink,
                 shape = UpcomingTokens.RadiusLarge,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp),
                 modifier = Modifier
@@ -169,7 +169,7 @@ fun DashboardScreen(
                         value = String.format(Locale.US, "%.1fh", uiState.hoursBookedThisMonth),
                         subtitle = "This Month",
                         icon = Icons.Outlined.Schedule,
-                        iconTint = GeoGreen,
+                        iconTint = SemanticSuccess,
                         modifier = Modifier.weight(1f)
                     )
                     MetricCard(
@@ -177,7 +177,7 @@ fun DashboardScreen(
                         value = StripePaymentSimulator.formatPrice(uiState.totalRevenueCents),
                         subtitle = "Processed",
                         icon = Icons.Outlined.CreditCard,
-                        iconTint = GeoPurple,
+                        iconTint = AccentTeal,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -203,7 +203,7 @@ fun DashboardScreen(
                         icon = Icons.Outlined.DateRange,
                         title = "Availability",
                         subtitle = "Hours & rules",
-                        color = GeoPurple,
+                        color = AccentTeal,
                         onClick = onNavigateToAvailability,
                         modifier = Modifier.weight(1f)
                     )
@@ -211,7 +211,7 @@ fun DashboardScreen(
                         icon = Icons.Outlined.CalendarMonth,
                         title = "All Bookings",
                         subtitle = "Manage events",
-                        color = GeoGreen,
+                        color = SemanticSuccess,
                         onClick = onNavigateToBookings,
                         modifier = Modifier.weight(1f)
                     )
@@ -258,15 +258,15 @@ fun HostHeaderCard(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = GeoAvatarBg,
-                    border = BorderStroke(1.dp, GeoAvatarBorder),
+                    color = SurfaceCard,
+                    border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = user?.displayName?.split(" ")?.mapNotNull { it.firstOrNull()?.toString() }?.take(2)?.joinToString("") ?: "JD",
-                            color = GeoAvatarText,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            color = Ink,
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
                 }
@@ -274,7 +274,7 @@ fun HostHeaderCard(
                 Column {
                     Text(
                         text = user?.displayName ?: "Alex Rivera",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(
@@ -326,8 +326,8 @@ fun GeometricGlanceWidgetBanner(
 ) {
     Surface(
         shape = UpcomingTokens.RadiusLarge,
-        color = GeoFeaturedBgLight,
-        border = BorderStroke(1.dp, GeoFeaturedBorderLight),
+        color = SurfaceCard,
+        border = BorderStroke(1.dp, Hairline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -339,7 +339,7 @@ fun GeometricGlanceWidgetBanner(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(UpcomingTokens.RadiusMedium)
-                        .background(GeoFeaturedTextLight),
+                        .background(Ink),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -354,15 +354,14 @@ fun GeometricGlanceWidgetBanner(
                     Text(
                         text = "UPCOMING WIDGET",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.SemiBold,
                             letterSpacing = 1.sp
                         ),
-                        color = GeoFeaturedTextLight
+                        color = Ink
                     )
                     Text(
                         text = if (upcomingCount > 0) "You have $upcomingCount meetings scheduled" else "No meetings scheduled today",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = GeoFeaturedTextLight
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink
                     )
                 }
             }
@@ -377,7 +376,7 @@ fun GeometricGlanceWidgetBanner(
                 Surface(
                     shape = UpcomingTokens.RadiusMedium,
                     color = Color.White,
-                    border = BorderStroke(1.dp, GeoFeaturedBorderLight),
+                    border = BorderStroke(1.dp, Hairline),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -389,13 +388,13 @@ fun GeometricGlanceWidgetBanner(
                             Column {
                                 Text(
                                     text = nextEventType.title,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = GeoTextPrimaryLight
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Ink
                                 )
                                 Text(
                                     text = "with ${nextAttendee?.name ?: nextAttendee?.email ?: "Guest"}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = GeoTextSecondaryLight
+                                    color = MutedText
                                 )
                             }
                             StatusBadge(status = nextBooking.status)
@@ -415,8 +414,8 @@ fun GeometricGlanceWidgetBanner(
                             )
                             Text(
                                 text = timeFmt.format(startDate),
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                color = GeoTextPrimaryLight
+                                style = UpcomingTextStyles.monoLabel,
+                                color = Ink
                             )
                         }
 
@@ -479,7 +478,7 @@ fun MetricCard(
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
@@ -522,7 +521,7 @@ fun QuickActionTile(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
@@ -553,7 +552,7 @@ fun GeometricEventTypeCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = eventType.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -571,7 +570,7 @@ fun GeometricEventTypeCard(
                     .size(8.dp)
                     .clip(CircleShape)
                     .background(
-                        if (eventType.priceInCents > 0) MaterialTheme.colorScheme.primary else GeoGreenDot
+                        if (eventType.priceInCents > 0) MaterialTheme.colorScheme.primary else SemanticSuccess
                     )
             )
         }
@@ -598,7 +597,12 @@ fun GeometricEventTypeCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text("⏰", fontSize = 11.sp)
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
                             text = "${eventType.lengthMinutes}m",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -617,7 +621,12 @@ fun GeometricEventTypeCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text("🔗", fontSize = 11.sp)
+                        Icon(
+                            imageVector = Icons.Outlined.Link,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
                             text = shareUrl,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -630,18 +639,18 @@ fun GeometricEventTypeCard(
                 if (eventType.priceInCents > 0) {
                     Surface(
                         shape = UpcomingTokens.RadiusSmall,
-                        color = GeoPrimaryContainerLight
+                        color = SurfaceCreamStrong
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text("💳", fontSize = 11.sp)
-                            Text(
-                                text = "Stripe Active",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = GeoOnPrimaryContainerLight
+                            Icon(
+                                imageVector = Icons.Outlined.CreditCard,
+                                contentDescription = "Stripe Active",
+                                tint = AccentTeal,
+                                modifier = Modifier.size(12.dp)
                             )
                         }
                     }
@@ -653,13 +662,13 @@ fun GeometricEventTypeCard(
                 onClick = onBookNow,
                 shape = UpcomingTokens.RadiusMedium,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = GeoPrimaryContainerLight,
-                    contentColor = GeoOnPrimaryContainerLight
+                    containerColor = SurfaceCreamStrong,
+                    contentColor = Ink
                 ),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 modifier = Modifier.height(32.dp)
             ) {
-                Text("Book", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                Text("Book", style = MaterialTheme.typography.labelSmall)
                 Spacer(modifier = Modifier.width(3.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
