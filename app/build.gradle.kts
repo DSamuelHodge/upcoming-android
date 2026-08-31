@@ -7,6 +7,7 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.google.firebase.crashlytics)
 }
 
 // google-services.json is gitignored (dfb4876 — fetched out-of-band), so a
@@ -56,6 +57,8 @@ android {
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      // Phase 0.5: upload the R8 mapping so release crash traces deobfuscate.
+      firebaseCrashlytics { mappingFileUploadEnabled = true }
     }
     debug { signingConfig = signingConfigs.getByName("debugConfig") }
   }
@@ -121,6 +124,11 @@ dependencies {
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.firebase.messaging)
+  // Phase 0.5: crash + error reporting. PII scrubbing: we never call
+  // setUserId/setCustomKey with emails, booking UIDs, or tokens, and the
+  // app's own logging never carries them either — Crashlytics only sees
+  // stack traces. (Fatal + non-blocking errors aggregate in the console.)
+  implementation(libs.firebase.crashlytics)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
