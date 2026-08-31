@@ -109,13 +109,15 @@ object UpcomingApiClient {
 
     fun create(
         baseUrl: String = BuildConfig.UPCOMING_API_BASE_URL,
-        apiSecret: String = BuildConfig.UPCOMING_API_SECRET,
         auth: app.getupcoming.core.auth.AuthTokenManager? = null
     ): UpcomingApi {
         require(baseUrl.isNotBlank()) { "UPCOMING_API_BASE_URL is not configured (.env)" }
-        require(apiSecret.isNotBlank()) { "UPCOMING_API_SECRET is not configured (.env)" }
 
-        // JWT when logged in, legacy shared secret otherwise (demo/admin).
+        // JWT-only (Phase 0.2): the legacy shared API secret never ships in the
+        // app. Requests without a live token carry no Authorization header —
+        // the only such calls are the server's open /auth/* routes. Demo mode
+        // is fully local (UpcomingRepository.isDemoSession()) and never dials
+        // the network.
         val normalizedBaseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         val authenticator = auth?.let { mgr ->
             okhttp3.Authenticator { _, response ->
@@ -132,12 +134,13 @@ object UpcomingApiClient {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
-                val token = auth?.accessToken() ?: apiSecret
-                chain.proceed(
-                    chain.request().newBuilder()
-                        .header("Authorization", "Bearer $token")
-                        .build()
-                )
+                val request = chain.request().newBuilder()
+                // Attach a header only for a real JWT; never fall back to a
+                // shared secret (none exists in the app anymore).
+                auth?.accessToken()?.takeIf { it.isNotBlank() }?.let { token ->
+                    request.header("Authorization", "Bearer $token")
+                }
+                chain.proceed(request.build())
             }
             .apply { authenticator?.let { authenticator(it) } }
             .build()

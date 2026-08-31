@@ -80,6 +80,10 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  // Phase 0.2: never bake a shared API secret into any BuildConfig. If a
+  // developer's local .env still carries UPCOMING_API_SECRET it must not
+  // reach the APK (debug or release) — the app is JWT-only.
+  ignoreList.add("UPCOMING_API_SECRET")
 }
 
 // googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
