@@ -7,6 +7,7 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.google.firebase.crashlytics)
 }
 
 // google-services.json is gitignored (dfb4876 — fetched out-of-band), so a
@@ -50,9 +51,14 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // Phase 0 security: R8 minification + obfuscation, plus resource
+      // shrinking. ~30% APK size drop and reverse-engineering defense.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      // Phase 0.5: upload the R8 mapping so release crash traces deobfuscate.
+      firebaseCrashlytics { mappingFileUploadEnabled = true }
     }
     debug { signingConfig = signingConfigs.getByName("debugConfig") }
   }
@@ -77,6 +83,10 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  // Phase 0.2: never bake a shared API secret into any BuildConfig. If a
+  // developer's local .env still carries UPCOMING_API_SECRET it must not
+  // reach the APK (debug or release) — the app is JWT-only.
+  ignoreList.add("UPCOMING_API_SECRET")
 }
 
 // googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
@@ -114,6 +124,13 @@ dependencies {
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.firebase.messaging)
+  // Phase 0.5: crash + error reporting. PII scrubbing: we never call
+  // setUserId/setCustomKey with emails, booking UIDs, or tokens, and the
+  // app's own logging never carries them either — Crashlytics only sees
+  // stack traces. (Fatal + non-blocking errors aggregate in the console.)
+  implementation(libs.firebase.crashlytics)
+  // Phase 0.6: Play Integrity, logging-only MVP (see PlayIntegrityLogger).
+  implementation(libs.play.integrity)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 

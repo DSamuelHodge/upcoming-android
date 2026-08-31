@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 0.3/0.4 — Network security policy + certificate pinning.
+
+  Cleartext HTTP is forbidden everywhere. Local testing exceptions
+  (localhost + the emulator loopback alias) live in the debug sourceSet
+  overlay (app/src/debug/res/xml/network_security_config.xml), so a
+  release install can never speak cleartext to anything.
+
+  Pinning applies ONLY to api.getupcoming.app (Cloudflare Workers custom
+  domain). NEVER pin *.workers.dev — Cloudflare rotates workers.dev edge
+  certs without notice, which would brick pinned installs (roadmap).
+
+  Pin set (SPKI SHA-256, chain verified live 2026-08-30):
+    - sha256/QmpeKv/6NBPg0EP1huF8ItcAqHHoEc68RNll1+zTasc=  leaf CN=getupcoming.app (GTS WE1, exp 2026-11-28)
+    - sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=  intermediate GTS WE1 (exp 2029-02-20) — rotation anchor: renewed leafs chain here, so leaf rotation alone does not brick installs
+    - sha256/mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=  root GTS Root R4 (exp 2028-01-28) — last-resort anchor, also covers the cross-signed GlobalSign path on older Android system stores
+  Any one matching pin validates the chain.
+
+  Expiration 2027-01-01: after it, NSC fails OPEN (system-CA TLS, no
+  pins) instead of bricking — an app update MUST refresh the pin set
+  before this date (roadmap: "rotate certs via app update").
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.getupcoming.app</domain>
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">QmpeKv/6NBPg0EP1huF8ItcAqHHoEc68RNll1+zTasc=</pin>
+            <pin digest="SHA-256">kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=</pin>
+            <pin digest="SHA-256">mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

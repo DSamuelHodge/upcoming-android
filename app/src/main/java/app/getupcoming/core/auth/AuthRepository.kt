@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 class AuthRepository(
     private val api: UpcomingApi,
     private val tokens: AuthTokenManager,
+    private val context: android.content.Context? = null,
     private val onSessionEstablished: suspend () -> Unit = { }
 ) {
 
@@ -44,6 +45,7 @@ class AuthRepository(
             val auth = api.signUp(SignUpRequest(email.trim(), password, username.trim(), displayName?.trim(), timezone))
             tokens.save(auth)
             _authState.value = AuthState.LoggedIn(auth.user.id)
+            context?.let { app.getupcoming.core.security.PlayIntegrityLogger.logAfterAuth(it) }
             runCatching { onSessionEstablished() }
             auth.user
         }
@@ -55,6 +57,7 @@ class AuthRepository(
                 val auth = api.login(LoginRequest(email.trim(), password))
                 tokens.save(auth)
                 _authState.value = AuthState.LoggedIn(auth.user.id)
+                context?.let { app.getupcoming.core.security.PlayIntegrityLogger.logAfterAuth(it) }
                 runCatching { onSessionEstablished() }
                 auth.user
             }

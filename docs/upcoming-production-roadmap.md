@@ -14,28 +14,36 @@
 These **block Play Store approval** or create immediate post-launch fire:
 
 ### Security Hardening (1.5 weeks, blocks submission)
-- [ ] **R8 minification & obfuscation** enabled (`app/build.gradle.kts`)
+
+> **Status (2026-08-30): ALL 6 ITEMS CODE-COMPLETE on branch `fm/sec-phase0-retry` (PR pending).** R8 + no-hardcoded-credentials + network policy + pinning + Crashlytics + Play Integrity (logging-only). Remaining are **device-side verifications** (noted per item below) and the backend-lane follow-ups (API_SECRET rotation, integrity verdict endpoint).
+
+- [x] **R8 minification & obfuscation** enabled — **✅ DONE 2026-08-30 (fm/sec-phase0-retry, `5689d06`)**
+  - `isMinifyEnabled = true` + `isShrinkResources = true` on the release buildType; `proguard-rules.pro` rewritten with keep rules (Retrofit signatures, `kotlin.Metadata`, Moshi reflection DTOs, Room entities/DAOs, FCM push, AppFunctions, SourceFile/LineNumberTable for readable crash traces)
   - Impact: app size –30%, reverse-engineering defense
-  - Test: verify release APK size & APK Analyzer inspection
-- [ ] **Certificate pinning** for `api.getupcoming.app` (Workers custom domain attached 2026-08-30 — pin THIS, never the `*.workers.dev` hostname: Cloudflare rotates workers.dev edge certs without notice, which would brick pinned installs)
-  - Use Network Security Config (`res/xml/network_security_config.xml`) + public-key pinning
-  - Fallback chain: primary cert → secondary → disable on dev-signed APK
-  - Rotate certs via app update (no offline fallback to unpinned)
-  - Validate on the internal testing track before promoting the pin to production
-- [ ] **Crash & error reporting** (Crashlytics OR Bugsnag)
-  - Non-blocking errors logged + aggregated; fatal crashes surface in console
-  - PII scrubbing: no user emails, booking UIDs, tokens in logs
-  - Test: throw a test exception on a debug build
-- [ ] **No hardcoded credentials in code or BuildConfig**
+  - Test: **verified via `:app:minifyReleaseWithR8`** — BUILD SUCCESSFUL; `classes.dex` 10.5MB, `mapping.txt` emitted, app classes obfuscated (e.g. `app.getupcoming.AppContainer -> ft`) and dead code stripped. Full APK-size check (APK Analyzer) pending an `assembleRelease` with the upload key.
+- [x] **Certificate pinning** for `api.getupcoming.app` — **✅ DONE 2026-08-30 (fm/sec-phase0-retry, `fe9ca8a`)** (Workers custom domain attached 2026-08-30 — pinned THIS, never the `*.workers.dev` hostname: Cloudflare rotates workers.dev edge certs without notice, which would brick pinned installs)
+  - Network Security Config (`res/xml/network_security_config.xml`) + SPKI SHA-256 public-key pinning, chain fetched live: leaf (GTS WE1, exp 2026-11-28) + **GTS WE1 intermediate as the rotation anchor** (renewed leafs chain to it — Cloudflare's ~90-day leaf rotation does not brick installs) + GTS Root R4 last-resort anchor
+  - `pin-set expiration="2027-01-01"`: NSC fails **open** after it (system-CA TLS, no brick) — a pin refresh must ship via app update before then
+  - ~~Fallback chain: primary cert → secondary → disable on dev-signed APK~~ ✅ debug sourceSet overlay replaces the config with a pin-free variant (dev-signed APKs never pin); rotation anchor + root pin are the secondary/tertiary chain
+  - [ ] Validate on the internal testing track before promoting (needs signed release + device)
+- [x] **Crash & error reporting** — **✅ DONE 2026-08-30 (fm/sec-phase0-retry, `ecc5ee9`)** (Crashlytics via firebaseBom 34.17.0 + gradle plugin 3.0.6)
+  - Non-blocking errors logged + aggregated; fatal crashes surface in console; `mappingFileUploadEnabled` on release so R8 traces deobfuscate
+  - PII scrubbing: no `setUserId`/`setCustomKey` anywhere; app logs carry no emails, booking UIDs, or tokens — Crashlytics sees stack traces only
+  - Absent `google-services.json` stays WARN-strategy (dfb4876) — fresh clones keep building
+  - [ ] Test: throw a test exception on a debug build → verify it surfaces in the Firebase console (needs device + console access)
+- [x] **No hardcoded credentials in code or BuildConfig** — **✅ DONE 2026-08-30 (fm/sec-phase0-retry, `2040ecc`; JWT-only, demo debug-gated)**
   - Secrets via Gradle secrets plugin ✓ (already done)
-  - Verify: no `UPCOMING_API_SECRET` hardcoded in source
-  - **⚠️ Strengthened (2026-08-30):** the Worker treats that secret as **admin** (`authIsAdmin`) — shipping it in any APK hands full admin to anyone who unzips it. Release builds must drop `UPCOMING_API_SECRET` entirely and remove the `?: apiSecret` fallback in `UpcomingApiClient` (JWT-only). Demo mode: debug-only, fully local (Room seeds, no network calls).
-- [ ] **Play Integrity API** integration (replaces SafetyNet)
-  - Hook into auth: `verifyPlayIntegrity()` on signup/login; reject non-certified devices if stricter policy desired
-  - Non-blocking (logging only at MVP)
-- [ ] **Network security policy** (Play requirement)
-  - CleartextTrafficPolicy: `domain cleartextPermitted="false"` except localhost (testing)
-  - Verify via Network Monitor in Android Studio
+  - ~~Verify: no `UPCOMING_API_SECRET` hardcoded in source~~ ✅ `grep -r UPCOMING_API_SECRET app/src` clean
+  - ~~**⚠️ Strengthened (2026-08-30):** the Worker treats that secret as **admin** (`authIsAdmin`) — shipping it in any APK hands full admin to anyone who unzips it.~~ **Resolved client-side:** `UpcomingApiClient` drops the `apiSecret` param, the blank-secret `require`, and the `?: apiSecret` fallback; the Authorization header is attached **only** for a non-blank JWT (the server's open `/auth/*` routes carry no header — contract verified against `OPEN_PATHS` in upcoming-db `worker.ts`). `UPCOMING_API_SECRET` removed from `.env.example` **and** added to the secrets-plugin `ignoreList`, so no variant's BuildConfig can bake it in even if a developer's local `.env` still has it. Demo mode: the "Explore demo mode" entry is gated on `BuildConfig.DEBUG` and demo stays fully local via `isDemoSession()` (Room seeds, no network calls).
+  - Verified: `compileReleaseKotlin` + `compileDebugKotlin` green after the change
+  - **Backend follow-up (open):** the Worker still accepts the legacy shared secret as admin (`worker.ts` dual-auth 2026-08-29). Rotating/retiring `API_SECRET` server-side is a backend-lane item — the client no longer presents it anywhere.
+- [~] **Play Integrity API** integration — **✅ LOGGING-ONLY MVP DONE 2026-08-30 (fm/sec-phase0-retry, `2c50c67`)** (play:integrity 1.4.0)
+  - `PlayIntegrityLogger`: fire-and-forget token request after signup/login success; outcome logged only — never blocks auth; the token is a credential so it is never logged, and it is not yet forwarded anywhere
+  - **Backend follow-up (open):** verdict endpoint on upcoming-db (decrypt + EvaluateIntegrity) before `verifyPlayIntegrity()` can gate signup/login; strict mode (reject non-certified devices) deliberately deferred with it
+- [x] **Network security policy** — **✅ DONE 2026-08-30 (fm/sec-phase0-retry, `13dffa8`)**
+  - `res/xml/network_security_config.xml`: `cleartextTrafficPermitted="false"` globally; the only cleartext exceptions (localhost + `10.0.2.2` emulator loopback) live in a **debug sourceSet overlay** so a release install can never speak cleartext
+  - `android:networkSecurityConfig` wired on `<application>`; manifest merges verified for both variants
+  - [ ] Verify via Network Monitor in Android Studio (device-side polish, policy is already enforced)
 
 **Effort:** ~60 eng-hours (split: minify 8h, pinning 12h, Crashlytics setup 10h, Play Integrity 15h, policy audit 5h)
 

@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.getupcoming.BuildConfig
 import app.getupcoming.core.designsystem.*
 import app.getupcoming.ui.theme.*
 
@@ -135,11 +136,15 @@ fun AuthScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            UpcomingSecondaryButton(
-                text = "Explore demo mode",
-                onClick = { viewModel.enterDemo(onAuthenticated) },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Phase 0.2: demo mode is a development aid — never offer it in a
+            // release build.
+            if (BuildConfig.DEBUG) {
+                UpcomingSecondaryButton(
+                    text = "Explore demo mode",
+                    onClick = { viewModel.enterDemo(onAuthenticated) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
