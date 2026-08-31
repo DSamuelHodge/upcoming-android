@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 0.3 — Network security policy (Play requirement).
+
+  Cleartext HTTP is forbidden everywhere. Local testing exceptions
+  (localhost + the emulator loopback alias) live in the debug sourceSet
+  overlay (app/src/debug/res/xml/network_security_config.xml), so a
+  release install can never speak cleartext to anything.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
