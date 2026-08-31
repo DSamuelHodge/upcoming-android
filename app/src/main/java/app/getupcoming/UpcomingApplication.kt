@@ -31,6 +31,7 @@ class AppContainer(context: Context) {
         api = api,
         tokens = tokens,
         // A real session must never inherit the demo persona's data.
+        context = context,
         onSessionEstablished = { repository.onSessionEstablished() }
     )
 }

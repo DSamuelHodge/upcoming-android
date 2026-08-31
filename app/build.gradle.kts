@@ -129,6 +129,8 @@ dependencies {
   // app's own logging never carries them either — Crashlytics only sees
   // stack traces. (Fatal + non-blocking errors aggregate in the console.)
   implementation(libs.firebase.crashlytics)
+  // Phase 0.6: Play Integrity, logging-only MVP (see PlayIntegrityLogger).
+  implementation(libs.play.integrity)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
